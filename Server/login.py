@@ -3,6 +3,7 @@ from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import hashlib
+import base64
 
 database = Database("sqlite:///test.db")
 
@@ -25,6 +26,8 @@ async def login(request: loginInfo):
     m = hashlib.md5()
     m.update(password.encode("utf-8"))
     password = m.hexdigest()
+    loginAuth = base64.b64encode(email.encode("utf-8"))
+    
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar Text NOT NULL)")
     query = "SELECT Password FROM userInfo WHERE Email = :email"
     databasePass = await database.fetch_one(query, {"email": email})
@@ -41,6 +44,7 @@ async def login(request: loginInfo):
     else:
         return {
             "status_code": 200,
-            "detail": "Login success"
+            "detail": "Login success",
+            "auth": loginAuth
         }
     
