@@ -37,7 +37,7 @@ async def register(request: newPassword):
     m.update(request.newpassword.encode("utf-8"))
     newpassword = m.hexdigest()
     loginAuth = request.loginAuth
-    loginAuth = base64.b64decode(loginAuth)
+    loginAuth = base64.b64decode(loginAuth).decode('utf-8')
     
     if loginAuth == email:
         query = "SELECT Password FROM userInfo WHERE Email = :email"
