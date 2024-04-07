@@ -26,11 +26,11 @@ async def login(request: loginInfo):
     m = hashlib.md5()
     m.update(password.encode("utf-8"))
     password = m.hexdigest()
-    loginAuth = base64.b64encode(email.encode("utf-8"))
     
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar Text NOT NULL)")
     query = "SELECT Password FROM userInfo WHERE Email = :email"
     databasePass = await database.fetch_one(query, {"email": email})
+    uid = await database.fetch_val("SELECT UID FROM userInfo WHERE Email = :email", {"email": email})
     if databasePass is None:
         return {
             "status_code": 401,
@@ -42,9 +42,11 @@ async def login(request: loginInfo):
             "detail": "Password incorrect"
         }
     else:
+        loginAuth = base64.b64encode((email + str(uid)).encode("utf-8"))
         return {
             "status_code": 200,
             "detail": "Login success",
+            "uid": uid,
             "auth": loginAuth
         }
     

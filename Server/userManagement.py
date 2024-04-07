@@ -17,12 +17,14 @@ app = FastAPI(lifespan=lifespan)
 
 class newPassword(BaseModel):
     email: str
+    uid: str
     password: str
     newpassword: str
     loginAuth: str
 
 class userInfo(BaseModel):
     email: str
+    uid: str
     loginAuth: str
     avatar: str
 
@@ -30,6 +32,7 @@ class userInfo(BaseModel):
 async def register(request: newPassword):
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar TEXT NOT NULL)")
     email = request.email
+    uid = request.uid
     password = request.password
     m = hashlib.md5()
     m.update(password.encode("utf-8"))
@@ -39,7 +42,7 @@ async def register(request: newPassword):
     loginAuth = request.loginAuth
     loginAuth = base64.b64decode(loginAuth).decode('utf-8')
     
-    if loginAuth == email:
+    if loginAuth == email + uid:
         query = "SELECT Password FROM userInfo WHERE Email = :email"
         databasePass = await database.fetch_one(query, {"email": email})
         if password == databasePass[0]:
@@ -63,10 +66,11 @@ async def register(request: newPassword):
 async def avatarChange(request: userInfo):
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar TEXT NOT NULL)")
     email = request.email
+    uid = request.uid
     loginAuth = request.loginAuth
     loginAuth = base64.b64decode(loginAuth)
     avatar = request.avatar
-    if loginAuth == email:
+    if loginAuth == email + uid:
         await database.execute("UPDATE userInfo SET Avatar = :avatar WHERE Email = :email", {"avatar": avatar, "email": email})
         return {
             "status_code": 200,
