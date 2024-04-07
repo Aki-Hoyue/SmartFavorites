@@ -1,3 +1,4 @@
+import base64
 from fastapi import FastAPI, HTTPException
 from edge_tts import Communicate
 from pydantic import BaseModel
@@ -33,9 +34,20 @@ async def text_to_speech(request: TTSRequest):
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/process_tts")
-async def process_text_to_speech(request: str, voice: str):
-    request = request.replace("\"", " ")  # Fixed variable assignment
-    return await text_to_speech(TTSRequest(text=request, voice=voice))  # Fixed return statement
+async def process_text_to_speech(request: str, voice: str, email: str, uid: int, loginAuth: str):
+    Auth = loginAuth.encode("utf-8")
+    Auth = base64.b64decode(Auth).decode("utf-8")
+    
+    if Auth == email + uid:
+        request = request.replace("\"", " ")  # Fixed variable assignment
+        return await text_to_speech(TTSRequest(text=request, voice=voice))  # Fixed return statement
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }
+
+
 
 # TODO: Add more voices and languages
 # Test texts:
