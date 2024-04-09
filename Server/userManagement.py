@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+import os
+import shutil
+import uuid
+from fastapi import FastAPI, File, UploadFile
 from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -26,7 +29,6 @@ class userInfo(BaseModel):
     email: str
     uid: str
     loginAuth: str
-    avatar: str
 
 @app.post("/forgetPassword")
 async def register(request: newPassword):
@@ -62,19 +64,33 @@ async def register(request: newPassword):
             "detail": "User not logined"
         }
 
-@app.post("/avatarChange")
-async def avatarChange(request: userInfo):
+@app.post("/userInfoChange")
+async def avatarChange(request: userInfo, username: str, avatar: UploadFile = File(...)):
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar TEXT NOT NULL)")
     email = request.email
     uid = request.uid
     loginAuth = request.loginAuth
     loginAuth = base64.b64decode(loginAuth)
-    avatar = request.avatar
+    
     if loginAuth == email + uid:
-        await database.execute("UPDATE userInfo SET Avatar = :avatar WHERE Email = :email", {"avatar": avatar, "email": email})
+        if avatar != "":
+            avatar_type = os.path.splitext(avatar.filename)[1].replace(".", "")
+            avatar_name = str(uuid.uuid4()) + "_" + uid + "." + avatar_type
+            avatar_path = f"./avatars/{avatar_name}"
+            os.makedirs(os.path.dirname(avatar_path), exist_ok=True)
+            with open(avatar_path, "wb") as f:
+                data = await avatar.read()
+                f.write(data)
+                shutil.copyfileobj(avatar.file, f)
+            
+            await database.execute("UPDATE userInfo SET Avatar = :avatar WHERE Email = :email", {"avatar": avatar, "email": email})
+        
+        if username != "":
+            await database.execute("UPDATE userInfo SET Username = :username WHERE Email = :email", {"username": username, "email": email})
+        
         return {
             "status_code": 200,
-            "detail": "Avatar changed"
+            "detail": "UserInfo changed"
         }
     else:
         return {

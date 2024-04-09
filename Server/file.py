@@ -118,7 +118,7 @@ async def delete(request: fileInfo, fid: int):
             "detail": "User not logined"
         }
 
-@app.post("/modify_files")
+@app.post("/modifyFiles")
 async def modify_files(request: fileInfo, fid: int, filename: str = "", description: str = ""):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
     email = request.email
@@ -139,3 +139,29 @@ async def modify_files(request: fileInfo, fid: int, filename: str = "", descript
             "detail": "User not logined"
         }
 
+@app.post("/fileSearch")
+async def file_search(request: fileInfo, keyword: str):
+    await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
+    email = request.email
+    uid = request.uid
+    loginAuth = request.loginAuth
+    loginAuth = base64.b64decode(loginAuth).decode('utf-8')
+    
+    if loginAuth == email + uid:
+        query = "SELECT * FROM fileInfo WHERE (Filename LIKE :keyword OR Description LIKE :keyword) AND Email = :email"
+        try:
+            result = await database.fetch_all(query, {"keyword": "%" + keyword + "%", "email": email})
+            return {
+                "status_code": 200,
+                "data": result
+            }
+        except Exception:
+            return {
+                "status_code": 400,
+                "detail": "File not found"
+            }
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }    
