@@ -8,9 +8,10 @@ import requests
 app = FastAPI()
 
 @app.post("/ocr")
-async def process_ocr(email: str = Form(...), loginAuth: str = Form(...), languages: str = Form(...), file: UploadFile = File(...)):
-    loginAuth = base64.b64decode(loginAuth).decode('utf-8')
-    if loginAuth == email:
+async def process_ocr(email: str = Form(...), uid: str = Form(...), loginAuth: str = Form(...), languages: str = Form(...), file: UploadFile = File(...)):
+    Auth = base64.b64decode(loginAuth).decode('utf-8')
+    
+    if Auth == email + uid:
         if languages == 'eng':
             ocr_render_type = 'hocr'
         else: 
