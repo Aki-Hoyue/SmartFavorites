@@ -23,11 +23,9 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.labels)
 
     def get_batch_labels(self, idx):
-        # Fetch a batch of labels
         return np.array(self.labels[idx])
 
     def get_batch_texts(self, idx):
-        # Fetch a batch of inputs
         return self.texts[idx]
 
     def __getitem__(self, idx):
@@ -157,48 +155,35 @@ evaluate(model, df_test)
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 
-# 假设`labels`是您之前定义的标签字典
 labels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}
 
-# 初始化tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
-# 加载模型结构
 model = BertForSequenceClassification.from_pretrained('bert-base-cased', num_labels=len(labels))
 
-# 加载模型
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 加载模型结构和权重
 model = torch.load('./classifier.pth')
-model.to(device)  # 将模型移动到正确的设备
+model.to(device)
 if torch.cuda.is_available():
     model = model.cuda()
-# 确定tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
-# 设置模型为评估模式
 model.eval()
 
-# 定义预测函数
 def predict(model, sentence, tokenizer, labels, device):
-    # 使用tokenizer编码句子
     inputs = tokenizer(sentence, padding='max_length', max_length=512, truncation=True, return_tensors="pt")
-    # 将输入数据移动到同一设备上
+    
     input_id = inputs['input_ids'].to(device)
     mask = inputs['attention_mask'].to(device)
 
-    # 不计算梯度
     with torch.no_grad():
-        # 通过模型进行预测，这里需要匹配forward函数的参数
         outputs = model(input_id=input_id, mask=mask)
 
-    # 从输出中获取预测结果
     prediction = torch.argmax(outputs, dim=1).item()
 
     return prediction
 
-# 测试句子
 test_sentence = "I want to open the file test.md."
 predicted_label = predict(model, test_sentence, tokenizer, labels, device)
 print(f"Predicted label for '{test_sentence}': {predicted_label}")
