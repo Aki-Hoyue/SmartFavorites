@@ -1,16 +1,19 @@
 import os
 import shutil
+from fastapi.responses import StreamingResponse
+import requests
 import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-from datasets import load_dataset
-from fastapi import FastAPI, File, UploadFile
-import requests
+from fastapi import FastAPI, File, HTTPException, UploadFile
 import base64
 import json
 from databases import Database
-from contextlib import asynccontextmanager
+from io import BytesIO
+from edge_tts import Communicate
+from uuid import uuid4
 
 app = FastAPI()
+database = Database("sqlite:///test.db")
 
 def classifier(text: str):
     import torch
@@ -96,24 +99,51 @@ async def voice(email: str, uid: str, loginAuth: str, voice: UploadFile = File(.
         if confidence > 0.5:
             code = classifier(result["text"])
             if confident_code != code:
-                code = confident_code
+                code = confident_code    
             
             if code == 0:
                 state = openfile(result["text"])
             elif code == 1:
                 state = deletefile(result["text"])
             elif code == 2:
-                state = ocrfile(result["text"], email, uid, loginAuth)
+                state = ocrfile(result["text"])
             elif code == 3:
                 state = getlatestrss()
             elif code == 4:
                 state = searchbook(result["text"])
             elif code == 5:
                 state = ttsfile(result["text"])
+            
+            text = state["text"]
+        else: 
+            text = response["text_zh"]
         
+        request = text.replace("\"", " ")
+        voice = "zh-CN-XiaoxiaoNeural"
+        TTS_PATH = "./tts_files"
+        
+        try:
+            unique_filename = str(uuid4()) + ".mp3"
+            file_path = os.path.join(TTS_PATH, unique_filename)
+            
+            communicate = Communicate(request, voice)
+            await communicate.save(file_path)
+            return {
+                "status_code": 200,
+                "operation": state["operation"],
+                "text": text,
+                "voice": file_path
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }
 
-def google_gemini(text: str, prompt=None):
+async def google_gemini(text: str, prompt=None):
     GOOGLE_API = "AIzaSyDqoqVxxiQYmcua5GkJ7oYX8zoVMcGyfvY"
     import google.generativeai as genai
     
@@ -140,11 +170,10 @@ PROMPT = "You are an intelligent verbal response assistant who will respond to t
 
 GETFILENAME = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. I want you to extract the filename or the search keyword in the following statement, for example from ' I want to open the file test.md.' to 'test.md', or from ' I want to ocr the mybook.' to 'mybook', or from 'I want to search for 'Huozhe' to 'Huozhe'. Please return the extracted content to me directly."
 
-def openfile(text: str):
+async def openfile(text: str):
     prompt = GETFILENAME
     filename = google_gemini(text, prompt)
     
-    database = Database("sqlite:///test.db")
     database.connect()
     
     query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
@@ -165,11 +194,10 @@ def openfile(text: str):
         "fileaddress": None
     }
     
-def deletefile(text: str):
+async def deletefile(text: str):
     prompt = GETFILENAME
     filename = google_gemini(text, prompt)
     
-    database = Database("sqlite:///test.db")
     database.connect()
     
     query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
@@ -193,33 +221,146 @@ def deletefile(text: str):
         "text": "OK, I will delete " + filename + " for you"
     }
 
-def ocrfile(text: str, email: str, uid: str, loginAuth: str):
+async def ocrfile(text: str):
     prompt = GETFILENAME
     filename = google_gemini(text, prompt)
     
-    database = Database("sqlite:///test.db")
     database.connect()
     
     query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    address = database.fetch_one(query, {"filename": filename})
+    file_path = database.fetch_one(query, {"filename": filename})
+    database.disconnect()
     
-    if address is None:
-        database.disconnect()
+    if file_path is None:
         return {
             "status_code": 404,
             "operation": "ocr a file",
             "text": "Can not find " + filename + ". Please check the filename and try again!"
         }
     
-    requests.post("/ocr", data={
-        email: email,
-        uid: uid,
-        loginAuth: loginAuth,
-        
-    })
+    with open(file_path, 'rb') as file:
+        content = file.read()
+        file = UploadFile(filename=file_path.name, file=BytesIO(content))
+    
+    if file.content_type != 'application/pdf':
+        return {
+            "status_code": 400,
+            "operation": "ocr a file",
+            "text": "Input file is not a PDF"
+        }
+
+    response = requests.post(
+        'https://pdf.hoyue.pp.ua/api/v1/misc/ocr-pdf',
+        files={'fileInput': (file.filename, content, file.content_type)},
+        data={
+            'languages': "eng",
+            'sidecar': True,
+            'ocrType': 'skip-text',
+            'ocrRenderType': "hocr"
+        }
+    )
+    
+    if response.status_code == 200:
+        content_type = response.headers.get('content-type')
+        filename = response.headers.get('Content-Disposition').split('filename=')[1]
+    
     
     return {
         "status_code": 200,
         "operation": "ocr a file",
-        "text": "OCR result for " + filename + ": " + processed_result
+        "text": "OK, I will ocr it.",
+        "files": StreamingResponse(BytesIO(response.content), media_type=content_type, headers={"Content-Disposition": "form-data; name='attachment'; filename={}".format(filename)})
     }
+    
+async def getlatestrss():
+    database.connect()
+    
+    query = "SELECT Link FROM rssContent WHERE Published = (SELECT MAX(Published) FROM rssContent)" 
+    Link = database.fetch_one(query)
+    database.disconnect()
+    
+    if Link is None:
+        return {
+            "status_code": 404,
+            "operation": "get latest rss",
+            "text": "No rss content found."
+        }
+    else:
+        return {
+            "status_code": 200,
+            "operation": "get latest rss",
+            "text": "The latest rss is " + Link[0],
+            "link": Link[0]
+        }
+
+async def searchbook(text: str):
+    prompt = GETFILENAME
+    title = google_gemini(text, prompt)
+    
+    query = "https://read.douban.com/j/search?start=0&limit=20&query=" + title
+    useragent = "Mozilla/5.0 (Linux; Android 8.1.0; JKM-AL00b Build/HUAWEIJKM-AL00b; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/66.0.3359.126 MQQBrowser/6.2 TBS/044807 Mobile Safari/537.36"
+    response = requests.get(query, headers={"User-Agent": useragent})
+    list = response.json()
+    bookList = []
+    for i in list:
+        if i["title"] is not None:
+            bookList.append({
+                "title": i["title"],
+                "subtitle": i["subtitle"],
+                "author": i["author"],
+                "abstract": i["abstract"],
+                "cover": i["cover"],
+                "id": i["id"]
+            })
+    return {
+        "status_code": 200,
+        "operation": "search for book",
+        "text": "OK, I will search for " + title + " for you",
+        "booklist": bookList
+    }
+    
+async def ttsfile(text: str):
+    prompt = GETFILENAME
+    filename = google_gemini(text, prompt)
+    
+    query = "SELECT FileAddress, Type FROM fileInfo WHERE Filename = :filename"
+    respone = database.fetch_one(query, {"filename": filename})
+    file_path = respone[0]
+    file_type = respone[1]
+    database.disconnect()
+    
+    if file_path is None:
+        return {
+            "status_code": 404,
+            "operation": "tts a file",
+            "text": "Can not find " + filename + ". Please check the filename and try again!"
+        }
+    
+    if file_type != 'epub' and file_type != 'pdf' and file_type != 'txt':
+        return {
+            "status_code": 400,
+            "operation": "tts a file",
+            "text": "File type is not supported"
+        }
+    
+    with open(file_path, 'r') as file:
+        content = file.read()
+    
+    request = content.replace("\"", " ")
+    voice = "zh-CN-XiaoxiaoNeural"
+    TTS_PATH = "./tts_files"
+    
+    try:
+        unique_filename = str(uuid4()) + ".mp3"
+        file_path = os.path.join(TTS_PATH, unique_filename)
+        
+        communicate = Communicate(request, voice)
+        await communicate.save(file_path)
+        return {
+            "status_code": 200,
+            "operation": "tts a file",
+            "text": "OK, I will TTS " + filename,
+            "file_path": file_path
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

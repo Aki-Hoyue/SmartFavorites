@@ -64,3 +64,5 @@ zh-hk_1: 宜家唔系事必要你讲，但系你所讲嘅说话将会变成呈�
 
 zh-hk_2: 各个国家有各个国家嘅国歌
 '''
+
+# https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4
