@@ -375,3 +375,227 @@ Return Examples:
 
 
 
+## Book searching
+
+Method: **POST**
+
+Path: `/search`
+
+Description: Search for books based on the provided keyword.
+
+Parameters:
+
+* request (searchInfo): The search request containing the keyword, email, uid, and loginAuth.
+
+Returns:
+* list: A list of dictionaries representing the books found. Each dictionary contains the following keys:
+
+  - title: The title of the book.
+
+  - subtitle: The subtitle of the book.
+
+  - author: The author of the book.
+
+  - abstract: The abstract of the book.
+
+  - cover: The cover image URL of the book.
+
+  - id: The ID of the book.
+
+
+Returned:
+- status_code: The status code indicating unauthorized access (401).
+- detail: A message indicating that the user is not logged in.
+- loginAuth: The provided loginAuth.
+- email: The provided email.
+
+Return Examples:
+
+```json
+// success
+[
+  {
+    "title": "活着",
+    "subtitle": "",
+    "author": "余华",
+    "abstract": "《活着》讲述了农村人福贵悲惨的人生遭遇。福贵本是个阔少爷，可他嗜赌如命，终于赌光了家业，一贫如洗。他的父亲被他活活气死，母亲则在穷困中患了重病，福贵前去求药，却…",
+    "cover": "https://pic.arkread.com/cover/ebook/f/30541512.1653661839.jpg!cover_default.jpg",
+    "id": "30541512"
+  }...
+]
+
+// not login
+{
+    "status_code": 401,
+    "detail": "User not logined"
+}
+```
+
+
+
+## TTS
+
+Method: **POST**
+
+Path: `/process_tts`
+
+Description: Process the text-to-speech request.
+
+Parameters:
+
+- request (str): The text to be converted to speech.
+- voice (str): The voice to be used for the speech synthesis.
+- email (str): The user's email.
+- uid (int): The user's ID.
+- loginAuth (str): The login authentication token.
+
+Returns:
+
+- If the authentication is successful, it returns the text-to-speech output.
+- If the authentication fails, it returns a dictionary with the status code and detail message.
+
+Return Examples:
+
+```json
+// success
+[
+  "status": "success",
+  "file_path": "/tts_files/test.mp3"
+]
+
+// not login
+{
+    "status_code": 401,
+    "detail": "User not logined"
+}
+```
+
+
+
+## RSS
+
+Method: **GET**
+
+Path: `/rss`
+
+Description: Get RSS feed and stores the articles in a database.
+
+Parameters:
+
+- feed_url (str): The URL of the RSS feed.
+- urlid (int): The ID of the URL.
+- email (str): The email of the user.
+- uid (int): The ID of the user.
+- loginAuth (str): The login authentication string.
+
+Returns:
+
+* Title (str): RSS feed ariticle titles.
+* Link (str): Ariticle links.
+* Published (int): Ariticle published time.
+* UID (int): RSS URL ID.
+
+Return Examples:
+
+```json
+// success
+[
+  {
+    "Title": "xxx",
+    "Link": "https://xxx/xxx.html",
+    "Published": 1712936775,
+    "UID": 1
+  }...
+]
+
+// not login
+{
+    "status_code": 401,
+    "detail": "User not logined"
+}
+```
+
+
+
+## OCR
+
+Method: **POST**
+
+Path: `/ocr`
+
+Description: Process OCR on a PDF file.
+
+Parameters:
+
+- email (str): The user's email.
+- uid (str): The user's unique ID.
+- loginAuth (str): The login authentication token.
+- languages (str): The languages to be used for OCR.
+- file (UploadFile): The PDF file to be processed.
+
+Returns:
+
+* StreamingResponse: The response containing the processed file.
+
+Return Examples:
+
+```json
+// success
+{
+    StreamingResponse: file,
+    header
+}
+
+// not login
+{
+    "status_code": 401,
+    "detail": "User not logined"
+}
+```
+
+
+
+## Voice assistant
+
+Method: **POST**
+
+Path: `/voice`
+
+Description: Endpoint for processing voice input and generating a response.
+
+Parameters:
+
+- email (str): The user's email.
+- uid (str): The user's unique ID.
+- loginAuth (str): The login authentication token.
+- voice (UploadFile): The voice file to be processed.
+
+Returns:
+- dict: A dictionary containing the response information, including the status code, operation, text, and voice file path.
+
+  - status_code (int): The HTTP status code.
+
+  - operation (str): The operation performed based on the voice input.
+
+  - text (str): The generated text response.
+
+  - voice (str): The file path of the generated voice response.
+
+Return Examples:
+
+```json
+// success
+{
+    "status_code": 200,
+    "operation": "open a file",
+    "text": "OK, I will open the file test.md",
+    "voice": "/files/voice.mp3"
+}
+
+// not login
+{
+    "status_code": 401,
+    "detail": "User not logined"
+}
+```
+

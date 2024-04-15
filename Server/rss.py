@@ -13,11 +13,10 @@ async def lifespan(rss: FastAPI):
     yield
     await database.disconnect()
 
-# 创建FastAPI应用
 rss = FastAPI(lifespan=lifespan)
 
 @rss.get("/rss")
-async def read_rss(feed_url: str, urlid: int, email: str, uid: int, loginAuth: str):
+async def read_rss(feed_url: str, urlid: int, email: str, uid: str, loginAuth: str):
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
     
