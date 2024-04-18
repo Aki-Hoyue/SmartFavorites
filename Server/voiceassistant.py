@@ -25,7 +25,7 @@ def classifier(text: str):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = torch.load('./classifier.pth')
+    model = torch.load('./models/classifier.pth')
     
     model.to(device)
     if torch.cuda.is_available():
