@@ -9,7 +9,8 @@ labels = {'open a file':0,
           'ocr a file':1,
           'open any RSS feed':2,
           'search a book':3,
-          'tts a file':4}
+          'tts a file':4
+          } 
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, df):
@@ -42,30 +43,17 @@ np.random.seed(112)
 df_train, df_val, df_test = np.split(df.sample(frac=1, random_state=42), [int(.8 * len(df)), int(.9 * len(df))])
 print(len(df_train),len(df_val), len(df_test))
 
-"""3. Modelling"""
 
-from torch import nn
-from transformers import BertModel
+# 3. Modelling
+import torch
+print(torch.cuda.is_available())
 
-class BertClassifier(nn.Module):
-    def __init__(self, dropout=0.5):
-        super(BertClassifier, self).__init__()
-        self.bert = BertModel.from_pretrained('bert-base-cased')
-        self.dropout = nn.Dropout(dropout)
-        self.linear = nn.Linear(768, 5)
-        self.relu = nn.ReLU()
-
-    def forward(self, input_id, mask):
-        _, pooled_output = self.bert(input_ids= input_id, attention_mask=mask,return_dict=False)
-        dropout_output = self.dropout(pooled_output)
-        linear_output = self.linear(dropout_output)
-        final_layer = self.relu(linear_output)
-        return final_layer
-
-""" 4. Training Models"""
+# 4. Training Models
 
 from torch.optim import Adam
 from tqdm import tqdm
+from model import BertClassifier
+from torch import nn
 
 def train(model, train_data, val_data, learning_rate, epochs):
     train, val = Dataset(train_data), Dataset(val_data)
@@ -88,7 +76,7 @@ def train(model, train_data, val_data, learning_rate, epochs):
             mask = train_input['attention_mask'].to(device)
             input_id = train_input['input_ids'].squeeze(1).to(device)
             output = model(input_id, mask)
-            batch_loss = criterion(output, train_label)
+            batch_loss = criterion(output, train_label.long())
             total_loss_train += batch_loss.item()
             acc = (output.argmax(dim=1) == train_label).sum().item()
             total_acc_train += acc
@@ -100,14 +88,13 @@ def train(model, train_data, val_data, learning_rate, epochs):
         total_loss_val = 0
         with torch.no_grad():
             for val_input, val_label in val_dataloader:
-       
                 val_label = val_label.to(device)
                 mask = val_input['attention_mask'].to(device)
                 input_id = val_input['input_ids'].squeeze(1).to(device)
 
                 output = model(input_id, mask)
 
-                batch_loss = criterion(output, val_label)
+                batch_loss = criterion(output, val_label.long())
                 total_loss_val += batch_loss.item()
 
                 acc = (output.argmax(dim=1) == val_label).sum().item()
@@ -119,15 +106,15 @@ def train(model, train_data, val_data, learning_rate, epochs):
             | Train Accuracy: {total_acc_train / len(train_data): .3f}
             | Val Loss: {total_loss_val / len(val_data): .3f}
             | Val Accuracy: {total_acc_val / len(val_data): .3f}''')
-
+            
 EPOCHS = 40
 model = BertClassifier()
 LR = 1e-6
 train(model, df_train, df_val, LR, EPOCHS)
 # Save models
-torch.save(model, './classifier.pth')
+torch.save(model, 'classifier.pth')
 
-"""5. Evaluation"""
+# 5. Evaluation
 
 def evaluate(model, test_data):
 
@@ -150,10 +137,11 @@ def evaluate(model, test_data):
 
 evaluate(model, df_test)
 
-"""6. Predict"""
+# 6. Predict
 
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
+from model import BertClassifier
 
 labels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}
 
@@ -173,7 +161,6 @@ model.eval()
 
 def predict(model, sentence, tokenizer, labels, device):
     inputs = tokenizer(sentence, padding='max_length', max_length=512, truncation=True, return_tensors="pt")
-    
     input_id = inputs['input_ids'].to(device)
     mask = inputs['attention_mask'].to(device)
 
@@ -187,3 +174,4 @@ def predict(model, sentence, tokenizer, labels, device):
 test_sentence = "I want to open the file test.md."
 predicted_label = predict(model, test_sentence, tokenizer, labels, device)
 print(f"Predicted label for '{test_sentence}': {predicted_label}")
+

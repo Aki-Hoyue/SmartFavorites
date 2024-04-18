@@ -2,8 +2,7 @@ import os
 import shutil
 from fastapi.responses import StreamingResponse
 import requests
-import torch
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+import whisper
 from fastapi import FastAPI, File, HTTPException, UploadFile
 import base64
 import json
@@ -11,23 +10,23 @@ from databases import Database
 from io import BytesIO
 from edge_tts import Communicate
 from uuid import uuid4
+import torch
+from transformers import BertTokenizer
 
 app = FastAPI()
 database = Database("sqlite:///test.db")
 
 def classifier(text: str):
-    import torch
-    from transformers import BertTokenizer, BertForSequenceClassification
-
-    labels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}
-
+    from model import BertClassifier
+    
     tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
-    model = BertForSequenceClassification.from_pretrained('bert-base-cased', num_labels=len(labels))
+    labels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = torch.load('./classifier.pth')
+    
     model.to(device)
     if torch.cuda.is_available():
         model = model.cuda()
@@ -50,105 +49,16 @@ def classifier(text: str):
     predicted_label = predict(model, text, tokenizer, labels, device)
     return predicted_label
 
-@app.post("/voice")
-async def voice(email: str, uid: str, loginAuth: str, voice: UploadFile = File(...)):
-    Auth = loginAuth.encode("utf-8")
-    Auth = base64.b64decode(Auth).decode("utf-8")
-    
-    if Auth == email + uid:
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+PROMPT = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. First, I will send you a statement and ask you to first judge the confidence of each item in labels for what the statement describes based on your model and output it using JSON format. Finally tell a most confidence label number and its confidence level, if you think the statement does not match any of the items described in the label, please tell me the label number is -1 and the level of confidence is -1.. labels are as follows:\nlabels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}\nA similar output would be as follows:{'labels': {'0': 'percentage', '1': 'percentage'...}, 'Most_Confidence': {'label': '0', 'level': 'percentage'}' }\nNext, please output your feedback on the statement using generative text based on the statement. Requirements: provide a better user experience from the perspective of a voice assistant, and require the output to be bilingual in Chinese and English. And write it to the previous JSON, here is the example:\n{'labels': {'0': 'percentage', '1': 'percentage'...}, 'Most_Confidence': {'label': '0', 'level': 'percentage'}, 'text_zh': '中文回复','text_en': 'English response'}\nNote that all percentages in the output need to be in str form, i.e. in quotes, and all quotes are double quotes.\nThe following is my statement, please complete the output according to the above requirements:\n"
 
-        model_id = "distil-whisper/distil-large-v3"
-
-        model = AutoModelForSpeechSeq2Seq.from_pretrained(
-            model_id, torch_dtype=torch_dtype, low_cpu_mem_usage=True, use_safetensors=True
-        )
-        model.to(device)
-
-        processor = AutoProcessor.from_pretrained(model_id)
-
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=model,
-            tokenizer=processor.tokenizer,
-            feature_extractor=processor.feature_extractor,
-            max_new_tokens=128,
-            torch_dtype=torch_dtype,
-            device=device,
-        )
-
-        # dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation")
-        
-        filepath = f"./files/{voice.filename}"
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
-        with open(filepath, "wb") as f:
-            data = await voice.read()
-            f.write(data)
-            shutil.copyfileobj(voice.file, f)
-        
-        result = pipe(filepath, generate_kwargs={"task": "translate"})
-
-        response = google_gemini(result["text"])
-        response = json.loads(response)
-        
-        confident_code = response["Most_Confidence"]["label"]
-        confidence = response["Most_Confidence"]["level"]
-        
-        if confidence > 0.5:
-            code = classifier(result["text"])
-            if confident_code != code:
-                code = confident_code    
-            
-            if code == 0:
-                state = openfile(result["text"])
-            elif code == 1:
-                state = deletefile(result["text"])
-            elif code == 2:
-                state = ocrfile(result["text"])
-            elif code == 3:
-                state = getlatestrss()
-            elif code == 4:
-                state = searchbook(result["text"])
-            elif code == 5:
-                state = ttsfile(result["text"])
-            
-            text = state["text"]
-        else: 
-            text = response["text_zh"]
-        
-        request = text.replace("\"", " ")
-        voice = "zh-CN-XiaoxiaoNeural"
-        TTS_PATH = "./tts_files"
-        
-        try:
-            unique_filename = str(uuid4()) + ".mp3"
-            file_path = os.path.join(TTS_PATH, unique_filename)
-            
-            communicate = Communicate(request, voice)
-            await communicate.save(file_path)
-            return {
-                "status_code": 200,
-                "operation": state["operation"],
-                "text": text,
-                "voice": file_path
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-    else:
-        return {
-            "status_code": 401,
-            "detail": "User not logined"
-        }
+GETFILENAME = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. I want you to extract the filename or the search keyword in the following statement, for example from ' I want to open the file test.md.' to 'test.md', or from ' I want to ocr the mybook.' to 'mybook', or from 'I want to search for 'Huozhe' to 'Huozhe'. Please return the extracted content to me directly."
 
 async def google_gemini(text: str, prompt=None):
     GOOGLE_API = "AIzaSyDqoqVxxiQYmcua5GkJ7oYX8zoVMcGyfvY"
     import google.generativeai as genai
     
     config = {
-        "temperature": 1,
+        "temperature": 0.8,
         "top_p": 1,
         "top_k": 1,
         "max_output_tokens": 2048
@@ -164,21 +74,18 @@ async def google_gemini(text: str, prompt=None):
     
     response = model.generate_content(prompts + text, generation_config=config)
     
+    print(response.text)
+    
     return response.text
-
-PROMPT = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. First, I will send you a statement and ask you to first judge the confidence of each item in labels for what the statement describes based on your model and output it using JSON format. Finally tell a most confidence label number and its confidence level, if you think the statement does not match any of the items described in the label, please tell me the label number is -1 and the level of confidence is -1.. labels are as follows:\nlabels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}\nA similar output would be as follows:{'labels': {'0': percentage, '1': percentage...}, 'Most_Confidence': {'labels': '0', 'level': 'percentage%'}' }\nNext, please output your feedback on the statement using generative text based on the statement. Requirements: provide a better user experience from the perspective of a voice assistant, and require the output to be bilingual in Chinese and English. And write it to the previous JSON, here is the example:\n{'labels': {'0': 'percentage%', '1': 'percentage%'...}, 'Most_Confidence': {'labels': '0', 'level': 'percentage%'}, 'text_zh': '中文回复','text_en': 'English response'}\nThe following is my statement, please complete the output according to the above requirements:\n"
-
-GETFILENAME = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. I want you to extract the filename or the search keyword in the following statement, for example from ' I want to open the file test.md.' to 'test.md', or from ' I want to ocr the mybook.' to 'mybook', or from 'I want to search for 'Huozhe' to 'Huozhe'. Please return the extracted content to me directly."
 
 async def openfile(text: str):
     prompt = GETFILENAME
-    filename = google_gemini(text, prompt)
+    filename = await google_gemini(text, prompt)
+    await database.connect()
     
-    database.connect()
-    
-    query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    result = database.fetch_one(query, {"filename": filename})
-    database.disconnect()
+    query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename AND UID = :uid"
+    result = await database.fetch_one(query, {"filename": filename, "uid": 1})
+    await database.disconnect()
     
     if result:
         return {
@@ -196,17 +103,17 @@ async def openfile(text: str):
     
 async def deletefile(text: str):
     prompt = GETFILENAME
-    filename = google_gemini(text, prompt)
+    filename = await google_gemini(text, prompt)
     
-    database.connect()
+    await database.connect()
     
     query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    result = database.fetch_one(query, {"filename": filename})
+    result = await database.fetch_one(query, {"filename": filename})
     
     if result:
         query = "DELETE FROM fileInfo WHERE Filename = :filename"
-        database.execute(query, {"filename": filename})
-        database.disconnect()
+        await database.execute(query, {"filename": filename})
+        await database.disconnect()
     else:
         database.disconnect()
         return {
@@ -223,13 +130,13 @@ async def deletefile(text: str):
 
 async def ocrfile(text: str):
     prompt = GETFILENAME
-    filename = google_gemini(text, prompt)
+    filename = await google_gemini(text, prompt)
     
-    database.connect()
+    await database.connect()
     
     query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    file_path = database.fetch_one(query, {"filename": filename})
-    database.disconnect()
+    file_path = await database.fetch_one(query, {"filename": filename})
+    await database.disconnect()
     
     if file_path is None:
         return {
@@ -273,11 +180,11 @@ async def ocrfile(text: str):
     }
     
 async def getlatestrss():
-    database.connect()
+    await database.connect()
     
     query = "SELECT Link FROM rssContent WHERE Published = (SELECT MAX(Published) FROM rssContent)" 
-    Link = database.fetch_one(query)
-    database.disconnect()
+    Link = await database.fetch_one(query)
+    await database.disconnect()
     
     if Link is None:
         return {
@@ -295,7 +202,7 @@ async def getlatestrss():
 
 async def searchbook(text: str):
     prompt = GETFILENAME
-    title = google_gemini(text, prompt)
+    title = await google_gemini(text, prompt)
     
     query = "https://read.douban.com/j/search?start=0&limit=20&query=" + title
     useragent = "Mozilla/5.0 (Linux; Android 8.1.0; JKM-AL00b Build/HUAWEIJKM-AL00b; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/66.0.3359.126 MQQBrowser/6.2 TBS/044807 Mobile Safari/537.36"
@@ -321,13 +228,14 @@ async def searchbook(text: str):
     
 async def ttsfile(text: str):
     prompt = GETFILENAME
-    filename = google_gemini(text, prompt)
+    filename = await google_gemini(text, prompt)
     
+    await database.connect()
     query = "SELECT FileAddress, Type FROM fileInfo WHERE Filename = :filename"
-    respone = database.fetch_one(query, {"filename": filename})
+    respone = await database.fetch_one(query, {"filename": filename})
     file_path = respone[0]
     file_type = respone[1]
-    database.disconnect()
+    await database.disconnect()
     
     if file_path is None:
         return {
@@ -364,3 +272,81 @@ async def ttsfile(text: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/voice")
+async def voice(email: str, uid: str, loginAuth: str, voice: UploadFile = File(...)):
+    Auth = loginAuth.encode("utf-8")
+    Auth = base64.b64decode(Auth).decode("utf-8")
+    
+    if Auth == email + uid:
+        try:
+            filepath = f"./files/{voice.filename}"
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+            with open(filepath, "wb") as f:
+                data = await voice.read()
+                f.write(data)
+                shutil.copyfileobj(voice.file, f)
+            
+            model = whisper.load_model("medium", download_root="./models/")
+            
+            prompt = "如果使用了中文，请使用简体中文来表示文本内容"
+            result = model.transcribe(filepath, language=None, initial_prompt=prompt)
+
+            response = await google_gemini(result["text"])
+            response = response.replace("JSON", " ")
+            response = response.replace("json", " ")
+            response = response.replace("```", " ")
+            response = json.loads(response)
+            
+            confident_code = response["Most_Confidence"]["label"]
+            confidence = float(response["Most_Confidence"]["level"].strip('%')) / 100
+            
+            if confidence > 0.5:
+                code = classifier(result["text"])
+                if confident_code != code:
+                    code = confident_code    
+                
+                state = {}
+                if code == '0':
+                    state = await openfile(result["text"])
+                    print(state)
+                elif code == '1':
+                    state = await deletefile(result["text"])
+                elif code == '2':
+                    state = await ocrfile(result["text"])
+                elif code == '3':
+                    state = await getlatestrss()
+                elif code == '4':
+                    state = await searchbook(result["text"])
+                elif code == '5':
+                    state = await ttsfile(result["text"])
+                
+                text = state["text"]
+            else: 
+                text = response["text_zh"]
+            
+            request = text.replace("\"", " ")
+            voice = "zh-CN-XiaoxiaoNeural"
+            TTS_PATH = "./tts_files"
+            
+            unique_filename = str(uuid4()) + ".mp3"
+            file_path = os.path.join(TTS_PATH, unique_filename)
+            
+            communicate = Communicate(request, voice)
+            await communicate.save(file_path)
+            return {
+                "status_code": 200,
+                "operation": state["operation"],
+                "text": text,
+                "voice": file_path
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }
+

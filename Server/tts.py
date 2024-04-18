@@ -34,7 +34,7 @@ async def text_to_speech(request: TTSRequest):
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/process_tts")
-async def process_text_to_speech(request: str, voice: str, email: str, uid: int, loginAuth: str):
+async def process_text_to_speech(request: str, voice: str, email: str, uid: str, loginAuth: str):
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
     
