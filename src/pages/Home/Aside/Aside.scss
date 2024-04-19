@@ -1,0 +1,26 @@
+aside {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 230px;
+    height: 100%;
+    background-color: #f2f2f2;
+    padding: 30px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    row-gap: 2rem;
+    padding-top: 80px;
+    transition: all .4s;
+    z-index: 900;
+    overflow: hidden;
+}
+
+@media screen and (max-width: 720px) {
+    aside {
+        transform: translateX(-100%);
+    }
+    aside.active {
+        transform: translateX(0);
+    }
+}

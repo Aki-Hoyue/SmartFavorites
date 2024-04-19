@@ -1,0 +1,52 @@
+.user {
+  color: #0B0C0F;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.user .user_name {
+  margin-left: 0.3rem;
+}
+
+.user .user_modal {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  height: auto;
+  width: 100%;
+  background-color: #fff;
+  text-align: start;
+  padding: 0.3rem;
+  border-radius: 5px;
+  -webkit-transform: translateY(-1000px);
+          transform: translateY(-1000px);
+  -webkit-transition: 500ms ease;
+  transition: 500ms ease;
+}
+
+.user .user_modal::after {
+  content: " ";
+  width: 15px;
+  height: 15px;
+  background-color: #fff;
+  position: absolute;
+  top: -6px;
+  left: 45%;
+  -webkit-transform: rotate(45deg);
+          transform: rotate(45deg);
+  z-index: -1;
+}
+
+.user .user_modal.active {
+  -webkit-transform: translateY(0);
+          transform: translateY(0);
+  -webkit-transition: 500ms ease;
+  transition: 500ms ease;
+}
+/*# sourceMappingURL=User.css.map */

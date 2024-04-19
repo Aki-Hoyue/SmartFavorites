@@ -1,0 +1,111 @@
+.uploading {
+    position: fixed;
+    bottom: 10%;
+    left: 50%;
+    transform: translate(-50%, 50%);
+    z-index: 999;
+    display: none;
+    background-color: #d9e1e8;
+    padding: 0.5rem;
+    border-radius: 8px;
+    box-sizing: border-box;
+    width: 400px;
+    max-width: 500px;
+    &.visible {
+        display: flex;
+        align-items: center;
+        column-gap: 1.5rem;
+    }
+    &.active {
+        position: relative;
+        transform: unset;
+        width: 400px;
+        left: 0;
+        bottom: 0;
+    }
+    .left_side {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        row-gap: 0.3rem;
+        position: relative;
+        width: 300px;
+        box-sizing: border-box;
+        .title {
+            font-size: 11px;
+        }
+        .uploading_progress {
+            width: 100%;
+            background-color: #f2f2f2;
+            height: 20px;
+            border-radius: 4px;
+            .uploading_progress_bar {
+                height: 100%;
+                border-radius: 4px;
+                background-color: #6986A5;
+                box-sizing: border-box;
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #ffffff;
+                overflow: hidden;
+            }
+        }
+        &::after {
+            content: "";
+            height: 60%;
+            width: 2px;
+            background-color: white;
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translate(50%, -50%);
+        }
+    }
+    .right_side {
+        display: grid;
+        place-items: center;
+        row-gap: 0.5rem;
+        box-sizing: border-box;
+        .uploading_icons {
+            display: flex;
+            column-gap: 0.5rem;
+            .uploading_icon {
+                color: #6986A5;
+                cursor: pointer;
+                &:hover {
+                    background-color: white;
+                    border-radius: 50%;
+                }
+            }
+        }
+    }
+}
+
+@media screen and (max-width: 720px) {
+    .uploading {
+        &.visible {
+            flex-direction: column;
+        }
+        &.active {
+            position: relative;
+            transform: unset;
+            width: 300px;
+            left: 0;
+            bottom: 0;
+        }
+        .left_side {
+            align-items: center;
+            padding: 0.5rem;
+            &::after {
+                display: none;
+            }
+        }
+        .right_side {
+            display: grid;
+            place-items: center;
+        }
+    }
+     
+}

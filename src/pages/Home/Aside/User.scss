@@ -1,0 +1,51 @@
+.user {
+    color: #0B0C0F;
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    .user_name {
+        margin-left: 0.3rem;
+    }
+    .user_modal {
+        position: absolute;
+        top: 60px;
+        left: 0;
+        height: auto;
+        width: 100%;
+        background-color: #fff;
+        text-align: start;
+        padding: 0.3rem;
+        border-radius: 5px;
+        transform: translateY(-1000px);
+        transition: 500ms ease;
+        &::after {
+            content: " ";
+            width: 15px;
+            height: 15px;
+            background-color: #fff;
+            position: absolute;
+            top: -6px;
+            left: 45%;
+            transform: rotate(45deg);
+            z-index: -1;
+        }
+    }
+    .user_modal.active {
+        transform: translateY(0);
+        transition: 500ms ease;
+    }
+}
+
+// @media screen and (max-width: 720px) {
+//     .user {
+//         // .user_modal {
+//         //     top: 50px;
+//         //     left: 0;
+//         //     border: 2px solid #6986A5;
+//         //     &::after{
+//         //         display: none;
+//         //     }
+//         // }
+//     }
+// }
