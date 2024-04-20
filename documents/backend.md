@@ -33,8 +33,11 @@ Return Examples:
 {
     "status_code": 200,
     "detail": "Login success",
+    "email": "test@test.com",
     "uid": 1,
-    "auth": "dGVzdEB0ZXN0LmNvbTE="
+    "username": "test",
+    "auth": "dGVzdEB0ZXN0LmNvbTE=",
+    "avatar": "https://cdn-icons-png.flaticon.com/512/149/149071.png"
 }
 
 // user not found
