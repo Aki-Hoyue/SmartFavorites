@@ -15,19 +15,19 @@ function Login() {
             <div className='login_wrapper'>
                 <div className="login_logo">
                     <AddToDriveIcon className='logo_icon' />
-                    <span className="text">Cloud Drive</span>
+                    <span className="text">Smart Favorites</span>
                 </div>
                 <div className="login">
                     <LoginForm />
                 </div>
                 <div className="register">
-                    <strong><h4 className='register_text'>haven't you an account?</h4></strong>
+                    <strong><h4 className='register_text'>还没有账号？</h4></strong>
                     <button 
                         className='btn-primary' 
                         type="submit"
                         onClick={() => {setVisible(true)}}
                     >
-                        Sign-up
+                        注册
                     </button>
                 </div>
             </div>

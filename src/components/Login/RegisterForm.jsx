@@ -28,7 +28,6 @@ function RegisterForm({ setVisible }) {
         handleRegister = e => {
             const { name, value } = e.target
             setUser({ ...user, [name]: value })
-            console.log(user)
         },
         // use yup to validate the inputs
         validateRegister = Yup.object({
@@ -48,22 +47,24 @@ function RegisterForm({ setVisible }) {
         [success, setSuccess] = useState(''),
         [loading, setLoading] = useState(''),
         registerSubimit = async () => {
-            try {
-                setLoading(true)
-                const { data } = await axios.post('http://localhost:8000/register',{username, email, password})
-                //console.log(username, email, password)
+            setLoading(true)
+            const { data } = await axios.post('http://localhost:8000/register',{username, email, password})
+            //successfully registered
+            if (data['status_code'] === 200) 
+            {
+                setSuccess(data['detail'])
                 setError('')
-                setSuccess(data.message)
+                setLoading(true)
                 // storing the data in cookies for us to use in redux, even after the page refresh
-                const { message, ...rest } = data
-                user_data = rest
-                // saving user data to use for activation 
-                Cookies.set('user', JSON.stringify(rest))
-            } catch(err) {
-                setLoading(false)
+                //user_data = {username, email, password}
+                //Cookies.set('user', JSON.stringify(user_data))
+            } 
+            else 
+            {
+                setError(data['detail'])
                 setSuccess('')
-                setError(err.response.data.message)
-            }
+                setLoading(false)
+            }          
         },
         mobile = useMediaQuery({
             query: "(max-width: 820px)",

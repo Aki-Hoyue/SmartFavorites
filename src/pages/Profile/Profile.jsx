@@ -19,7 +19,7 @@ function Profile() {
                 </Link>
                 |
                 <Link to="/mydrive">   
-                    <HomeRoundedIcon /> Go Home
+                    <HomeRoundedIcon /> 回到主页
                 </Link>
             </header>
             <div className="profile_main">

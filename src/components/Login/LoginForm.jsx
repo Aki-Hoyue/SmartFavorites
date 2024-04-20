@@ -6,7 +6,7 @@ import { useMediaQuery } from "react-responsive"
 import React, { useState } from 'react'
 import LoginInput from './LoginInput'
 import Cookies from 'js-cookie'
-import api from '../../api/api'
+import axios from 'axios'
 // redux
 import { useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
@@ -37,16 +37,16 @@ function LoginForm() {
     [error, setError] = useState(""),
     [loading, setLoading] = useState(false),
     loginSubmit = async () => {
-        try {
-            setLoading(true)
-            const { data } = await api.post('/login', {email, password})
-            
+        setLoading(true)
+        const { data } = await axios.post('http://localhost:8000/login', {email, password})
+        if (data['status_code'] === 200) 
+        {
             dispatch({type: 'LOGIN', payload: data})
             Cookies.set('user', JSON.stringify(data))
             navigate('/mydrive')
-        } catch(err) {
-            setLoading(false)
-            setError(err.response.data.message)
+        }
+        else {
+            setError(data['detail'])
         }
     },
     mobile = useMediaQuery({

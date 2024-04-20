@@ -3,6 +3,7 @@ from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import hashlib
+from starlette.middleware.cors import CORSMiddleware
 
 database = Database("sqlite:///test.db")
 
@@ -13,6 +14,21 @@ async def lifespan(app: FastAPI):
     await database.disconnect()
 
 app = FastAPI(lifespan=lifespan)
+
+# 配置允许的跨域请求来源
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+]
+
+# 添加跨域中间件
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class registerInfo(BaseModel):
     username: str

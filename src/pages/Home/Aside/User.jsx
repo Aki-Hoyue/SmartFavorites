@@ -37,7 +37,7 @@ function User({ name, picture }) {
             <div className={modal ? 'user_modal active' : 'user_modal'}>
                 <Link className="aside_options" to="/profile">
                     <AccountCircleRoundedIcon />
-                    <span className="option">My Profile</span>
+                    <span className="option">个人资料</span>
                 </Link>
                 <Link
                     className="aside_options"
@@ -47,7 +47,7 @@ function User({ name, picture }) {
                     }}
                 >
                     <LogoutRoundedIcon />
-                    <span className="option">Logout</span>
+                    <span className="option">登出</span>
                 </Link>
             </div>
         )

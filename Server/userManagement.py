@@ -28,7 +28,7 @@ class userInfo(BaseModel):
     loginAuth: str
     avatar: str
 
-@app.post("/forgetPassword")
+@app.post("/resetPassword")
 async def register(request: newPassword):
     await database.execute("CREATE TABLE IF NOT EXISTS userInfo (UID INTEGER PRIMARY KEY NOT NULL, Username TEXT NOT NULL, Password TEXT NOT NULL, Email TEXT NOT NULL, Avatar TEXT NOT NULL)")
     email = request.email

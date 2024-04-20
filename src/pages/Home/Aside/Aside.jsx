@@ -15,7 +15,7 @@ function Aside({ hidesidebar }) {
 
     return (
         <aside className={hidesidebar ? 'active' : ' '}>
-            <User name={user?.first_name} picture={user?.picture} />
+            <User name={user?.username} picture={user?.picture} />
             <div className="actions">
                 <AsideOption
                     Icon={ArchiveIcon}
