@@ -1,5 +1,5 @@
 import base64
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 import feedparser
 from databases import Database
 from contextlib import asynccontextmanager
@@ -13,9 +13,9 @@ async def lifespan(rss: FastAPI):
     yield
     await database.disconnect()
 
-rss = FastAPI(lifespan=lifespan)
+app = APIRouter(lifespan=lifespan, tags=["RSS"])
 
-@rss.get("/rss")
+@app.get("/rss")
 async def read_rss(feed_url: str, urlid: int, email: str, uid: str, loginAuth: str):
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")

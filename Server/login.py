@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     yield
     await database.disconnect()
 
-app = FastAPI(lifespan=lifespan)
+app = APIRouter(lifespan=lifespan, tags=["User Management"])
 
 class loginInfo(BaseModel):
     email: str

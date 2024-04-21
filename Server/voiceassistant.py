@@ -3,7 +3,7 @@ import shutil
 from fastapi.responses import StreamingResponse
 import requests
 import whisper
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, APIRouter
 import base64
 import json
 from databases import Database
@@ -13,7 +13,7 @@ from uuid import uuid4
 import torch
 from transformers import BertTokenizer
 
-app = FastAPI()
+app = APIRouter(tags=["Voice Assistant"])
 database = Database("sqlite:///test.db")
 
 def classifier(text: str):

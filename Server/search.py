@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 import requests
 import base64
 from pydantic import BaseModel
 
-app = FastAPI()
+app = APIRouter(tags=["Search"])
 
 class searchInfo(BaseModel):
     keyword: str

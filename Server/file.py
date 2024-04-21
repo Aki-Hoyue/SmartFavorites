@@ -1,5 +1,5 @@
 import shutil
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, APIRouter
 from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
     await database.disconnect()
 
-app = FastAPI(lifespan=lifespan)
+app = APIRouter(lifespan=lifespan, tags=["File Management"])   
 
 class fileInfo(BaseModel):
     email: str

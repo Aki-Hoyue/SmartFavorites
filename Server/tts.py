@@ -1,5 +1,5 @@
 import base64
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from edge_tts import Communicate
 from pydantic import BaseModel
 import os
@@ -10,7 +10,7 @@ TTS_PATH = "./tts_files"
 if not os.path.exists(TTS_PATH):
     os.makedirs(TTS_PATH)
 
-app = FastAPI()
+app = APIRouter()
 
 class TTSRequest(BaseModel):
     text: str

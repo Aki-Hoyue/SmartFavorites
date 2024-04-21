@@ -1,11 +1,11 @@
 from io import BytesIO
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, APIRouter
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 import base64
 import requests
 
-app = FastAPI()
+app = APIRouter(tags=["OCR"])
 
 @app.post("/ocr")
 async def process_ocr(email: str = Form(...), uid: str = Form(...), loginAuth: str = Form(...), languages: str = Form(...), file: UploadFile = File(...)):
