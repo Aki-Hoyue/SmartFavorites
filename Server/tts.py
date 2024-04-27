@@ -1,5 +1,5 @@
 import base64
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, APIRouter
 from edge_tts import Communicate
 from pydantic import BaseModel
 import os
@@ -10,7 +10,7 @@ TTS_PATH = "./tts_files"
 if not os.path.exists(TTS_PATH):
     os.makedirs(TTS_PATH)
 
-app = FastAPI()
+app = APIRouter()
 
 class TTSRequest(BaseModel):
     text: str
@@ -34,7 +34,7 @@ async def text_to_speech(request: TTSRequest):
         raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/process_tts")
-async def process_text_to_speech(request: str, voice: str, email: str, uid: int, loginAuth: str):
+async def process_text_to_speech(request: str, voice: str, email: str, uid: str, loginAuth: str):
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
     
@@ -64,3 +64,5 @@ zh-hk_1: 宜家唔系事必要你讲，但系你所讲嘅说话将会变成呈�
 
 zh-hk_2: 各个国家有各个国家嘅国歌
 '''
+
+# https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4
