@@ -1,5 +1,5 @@
 import shutil
-from fastapi import FastAPI, File, UploadFile, APIRouter
+from fastapi import FastAPI, File, Form, UploadFile, APIRouter
 from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -33,7 +33,8 @@ async def getfiles(email: str, uid: str, loginAuth: str):
         result = await database.fetch_all(query, {"uid": uid})
         return {
             "status_code": 200,
-            "data": result
+            "data": result,
+            "count": len(result)
         }
     else:
         return {
@@ -42,7 +43,7 @@ async def getfiles(email: str, uid: str, loginAuth: str):
         }
         
 @app.post("/upload")
-async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(...)):
+async def upload(email: str = Form(None), uid: str = Form(None), loginAuth: str = Form(...), file: UploadFile = File(...)):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
@@ -62,12 +63,13 @@ async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(.
             data = await file.read()
             f.write(data)
             shutil.copyfileobj(file.file, f)
+        file_size = os.path.getsize(file_path)
 
         query = "INSERT INTO fileInfo VALUES (:FID, :Filename, :Type, :Description, :FileAddress, :UID)"
         await database.execute(query, {
             "FID": fid,
             "Filename": file.filename,
-            "Type": file_type,
+            "Type": file_type.replace(".", ""),
             "Description": description,
             "FileAddress": file_path,
             "UID": uid

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import file
 import login
 import search
@@ -7,10 +8,28 @@ import tts
 import rss
 import userManagement
 import voiceassistant
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
+app.mount("/files", StaticFiles(directory="files"), name="files")
+app.mount("/tts_files", StaticFiles(directory="tts_files"), name="tts_files")
 
+origins = [
+    "http://localhost:3000",
+    "http://localhost:443",
+    "https://localhost",
+    "http://localhost:80",
+    "http://localhost",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 app.include_router(file.app)
 app.include_router(login.app)
