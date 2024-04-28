@@ -1,52 +1,87 @@
 import base64
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, APIRouter
 from edge_tts import Communicate
+from databases import Database
 from pydantic import BaseModel
 import os
 from uuid import uuid4
 
+database = Database("sqlite:///test.db")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.connect()
+    yield
+    await database.disconnect()
 
 TTS_PATH = "./tts_files"
 if not os.path.exists(TTS_PATH):
     os.makedirs(TTS_PATH)
 
-app = APIRouter()
+app = APIRouter(lifespan=lifespan, tags=["TTS"])
 
 class TTSRequest(BaseModel):
+    email: str
+    uid: str
+    loginAuth: str
     text: str
     voice: str
 
 @app.post("/tts")
 async def text_to_speech(request: TTSRequest):
-    TEXT = request.text
+    email = request.email
+    uid = request.uid
+    loginAuth = request.loginAuth
+    loginAuth = base64.b64decode(loginAuth).decode('utf-8')
+    TEXT = request.text.replace("\"", " ")
     VOICE = request.voice
-    try:
-        unique_filename = str(uuid4()) + ".mp3"
-        file_path = os.path.join(TTS_PATH, unique_filename)
-        
-        communicate = Communicate(TEXT, VOICE)
-        await communicate.save(file_path)
-        return {
-            "status": "success",
-            "file_path": file_path
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
     
-@app.post("/process_tts")
-async def process_text_to_speech(request: str, voice: str, email: str, uid: str, loginAuth: str):
-    Auth = loginAuth.encode("utf-8")
-    Auth = base64.b64decode(Auth).decode("utf-8")
+    if loginAuth == email + uid:
+        try:
+            unique_filename = str(uuid4()) + ".mp3"
+            file_path = os.path.join(TTS_PATH, unique_filename)
+            
+            communicate = Communicate(TEXT, VOICE)
+            await communicate.save(file_path)
+            return {
+                "status_code": 200,
+                "data": file_path.replace("./", "/").replace("\\", "/")
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
     
-    if Auth == email + uid:
-        request = request.replace("\"", " ")  # Fixed variable assignment
-        return await text_to_speech(TTSRequest(text=request, voice=voice))  # Fixed return statement
     else:
         return {
             "status_code": 401,
             "detail": "User not logined"
         }
+    
 
+@app.get("/getText/{fid}")
+async def get_text(fid: int, email: str, uid: str, loginAuth: str):
+    Auth = loginAuth.encode("utf-8")
+    Auth = base64.b64decode(Auth).decode("utf-8")
+    
+    if Auth == email + uid:
+        try:
+            query = "SELECT FileAddress FROM fileInfo WHERE FID = :fid"
+            path = await database.fetch_one(query, {"fid": fid})
+            file = open(path[0].replace("/files", "./files"), "r", encoding="utf-8")
+            result = file.read()
+            
+            return {
+                "status_code": 200,
+                "data": result
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }
 
 
 # TODO: Add more voices and languages
