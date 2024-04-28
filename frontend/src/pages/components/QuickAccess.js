@@ -48,7 +48,7 @@ const QuickAccess = ({files}) => {
                             </div>
                             <div className="nk-file-actions hideable">
                                 <a
-                                    href="#folder"
+                                    href="#unStar"
                                     onClick={(ev) => {
                                     ev.preventDefault();
                                         fileManagerUpdate.toggleStarred(item.id);

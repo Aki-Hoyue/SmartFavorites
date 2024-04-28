@@ -3,13 +3,17 @@ import Dropzone from "react-dropzone";
 import { Button } from "reactstrap";
 import { Icon } from "../../components/Component";
 import { bytesToMegaBytes } from "../../utils/Utils";
-
 import {iconsType} from '../components/Icons';
+import { set } from "react-hook-form";
+import { useFileManagerUpdate } from "../components/Context";
 
 const Upload = ({ toggle }) => {
-
+  const {fileManagerUpdate} = useFileManagerUpdate();
   const [files, setFiles] = useState([]);
-  
+  const [error, setError] = useState(false);
+  const [errorType, setErrorType] = useState('');
+  const [errorUpload, setErrorUpload] = useState(false);
+
   const handleDropChange = (acceptedFiles) => {
     setFiles(acceptedFiles);
   };
@@ -17,8 +21,108 @@ const Upload = ({ toggle }) => {
   const removeFromList = (name) => {
     let defaultFiles = files;
     defaultFiles = defaultFiles.filter((item) => item.name !== name);
+    setErrorType('');
+    setError(false);
     setFiles([...defaultFiles]);
   };
+
+  const determineType = (type) => {
+    switch(type) {
+      case 'application/pdf':
+        return 'PDF';
+      case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        return 'XLSX';
+      case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+        return 'PPTX';
+      case 'text/plain':
+        return 'TXT';
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return 'DOCX';
+      case 'application/epub':
+        return 'EPUB';
+      case 'application/epub+zip':
+        return 'EPUB';
+      case 'text/markdown':
+        return 'Markdown';
+      default:
+        return 'Error';
+    }
+  }
+
+  const determineIcon = (type) => {
+    switch(type) {
+      case 'TXT':
+      case 'EPUB':
+        return 'fileText';
+      case 'PDF':
+        return 'filePDF';
+      case 'DOCX':
+        return 'fileDoc';
+      case 'XLSX':
+        return 'fileSheet';
+      case 'PPTX':
+        return 'filePPT';
+      case 'MD':
+        return 'fileCode';
+      default:
+        return 'fileText';
+    }
+  }
+
+  const uploadFiles = async () => {
+    if (files.length === 0) {
+      setError(true);
+      return;
+    }
+    else 
+      setError(false);
+    let type = '';
+    const markdown = RegExp(/.md$/);
+    markdown.test(files[0].name) ? type = 'Markdown' : type = determineType(files[0].type);
+    if(type === 'Error') {
+      setErrorType(files[0].type);
+      console.log('Error type.');
+      return;
+    }
+    else 
+      setErrorType('');
+    
+    const formData = new FormData();
+    formData.append("email", 'test@test.com');
+    formData.append("uid", 1);
+    formData.append("loginAuth", 'dGVzdEB0ZXN0LmNvbTE=');
+    formData.append("file", files[0]);
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const result = await response.json();
+  
+      if (result["status_code"] === 200) {
+        const newFile = [{
+          id: result["data"]["FID"],
+          name: result["data"]["Filename"],
+          type: result["data"]["Type"],
+          icon: determineIcon(result["data"]["Type"]),
+          starred: false,
+          author: "",
+          abstract: "",
+          cover: ""
+        }]
+        fileManagerUpdate.newFiles(newFile);
+        setErrorUpload(false);
+        toggle();
+      } else {
+        console.error('Upload failed:', result);
+        setErrorUpload(true);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setErrorUpload(true);
+    }
+  }
 
   return (
     <React.Fragment>
@@ -35,6 +139,9 @@ const Upload = ({ toggle }) => {
       <div className="modal-body modal-body-md">
         <div className="nk-upload-form">
           <h5 className="title mb-3">Upload File</h5>
+          {error && <div className="alert alert-danger alert-icon"><em className="icon ni ni-cross-circle"></em><strong>Upload failed. </strong>Please select a file.</div>}
+          {errorType && <div className="alert alert-danger alert-icon"><em className="icon ni ni-cross-circle"></em><strong>Upload failed. </strong>{errorType} is not allowed.</div>}
+          {errorUpload && <div className="alert alert-danger alert-icon"><em className="icon ni ni-cross-circle"></em><strong>Upload failed. </strong>Please check your connection and try again.</div>}
           <Dropzone onDrop={(acceptedFiles) => handleDropChange(acceptedFiles)}>
             {({ getRootProps, getInputProps }) => (
               <section>
@@ -50,7 +157,7 @@ const Upload = ({ toggle }) => {
             )}
           </Dropzone>
         </div>
-        <div className="nk-upload-list">
+        {files.length > 0 && <div className="nk-upload-list">
           <h6 className="title">Uploaded Files</h6>
           {files.length > 0 ? (
             files.map((file, index) => (
@@ -58,7 +165,6 @@ const Upload = ({ toggle }) => {
                 <div className="nk-upload-icon">
                   {iconsType[file.type] ? iconsType[file.type] : iconsType["others"]}
                 </div>
-                {console.log(file.type)}
                 <div className="nk-upload-info">
                   <div className="nk-upload-title">
                     <span className="title">{file.name}</span>
@@ -84,7 +190,7 @@ const Upload = ({ toggle }) => {
               <span>No files added yet !</span>
             </div>
           )}
-        </div>
+        </div>}
         <div className="nk-modal-action justify-end">
           <ul className="btn-toolbar g-4 align-center">
             <li>
@@ -100,8 +206,8 @@ const Upload = ({ toggle }) => {
               </a>
             </li>
             <li>
-              <Button color="primary">
-                Add Files
+              <Button color="primary" onClick={uploadFiles}>
+              <Icon name="upload">&nbsp;</Icon>Upload 
               </Button>
             </li>
           </ul>

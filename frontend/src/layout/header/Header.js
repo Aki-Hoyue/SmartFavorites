@@ -6,6 +6,13 @@ import Notification from "./dropdown/notification/Notification";
 import Toggle from "../sidebar/Toggle";
 import { Link } from "react-router-dom";
 import { useTheme, useThemeUpdate } from '../provider/Theme';
+import { useFileManagerUpdate } from "../../pages/components/Context";
+import { Icon } from "../../components/Component";
+
+export const nowSkin = () => {
+  const theme = useTheme();
+  return theme.skin === "light" ? "dark" : "light";
+}
 
 const Header = ({ fixed, className, ...props }) => {
   const theme = useTheme();
@@ -33,6 +40,7 @@ const Header = ({ fixed, className, ...props }) => {
     setOnHover(false);
   };
 
+  const {fileManagerUpdate} = useFileManagerUpdate();
   return (
     <div className={headerClass}>
       <div className="container-lg wide-xl">
@@ -45,6 +53,18 @@ const Header = ({ fixed, className, ...props }) => {
               
               <li className="user-dropdown">
                 <User />
+              </li>
+              <li className="d-lg-none">
+                <a
+                  href="#menu"
+                  onClick={(ev) => {
+                      ev.preventDefault();
+                      fileManagerUpdate.asideVisibility();
+                  }}
+                  className="btn btn-trigger btn-icon toggle"
+                  >
+                      <Icon name="menu-alt-r"></Icon>
+                </a>
               </li>
             </ul>
           </div>

@@ -42,7 +42,7 @@ const User = () => {
         </div>
         <div className="dropdown-inner">
           <LinkList>
-            <LinkItem link="/setting" icon="setting-alt" onClick={toggle}>
+            <LinkItem link="/settings" icon="setting-alt" onClick={toggle}>
               Setting
             </LinkItem>
             <li>

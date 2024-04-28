@@ -8,7 +8,7 @@ import { Icon, BlockHead, BlockBetween, BlockTitle, BlockHeadContent } from "../
 
 const FileManagerLayout = ({...props}) => {
   const {fileManager} = useFileManager();
-
+  //<VoiceAssistant />
   return (
     <>
       <Head title={props.title}></Head>

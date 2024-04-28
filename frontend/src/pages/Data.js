@@ -1,11 +1,3 @@
-import User from "../images/avatar/b-sm.jpg";
-import User2 from "../images/avatar/c-sm.jpg";
-import User3 from "../images/avatar/a-sm.jpg";
-import User4 from "../images/avatar/d-sm.jpg";
-import PlanS1 from "../images/icons/plan-s1.svg";
-import PlanS2 from "../images/icons/plan-s2.svg";
-import PlanS3 from "../images/icons/plan-s3.svg";
-
 const data = {
   navigation : [
     {
@@ -45,166 +37,92 @@ const data = {
       link: "/settings",
     },
   ],
-  plans:[
-    {
-      id: 'planid01',
-      title: "Starter",
-      logo: PlanS1,
-      desc: "If you are a small business amn please select this plan",
-      amount: 99,
-      memory: 25,
-      userNumber: 1,
-      tags: false,
-    },
-    {
-      id: 'planid02',
-      title: "Pro",
-      logo: PlanS2,
-      desc: "If you are a small business amn please select this plan",
-      amount: 299,
-      userNumber: 5,
-      memory: 50,
-      tags: true,
-    },
-    {
-      id: 'planid03',
-      title: "Enterprise",
-      logo: PlanS3,
-      desc: "If you are a small business amn please select this plan",
-      amount: 599,
-      userNumber: 20,
-      memory: 75,
-      tags: false,
-    },
-    {
-      id: 'planid04',
-      title: "Premium",
-      logo: PlanS1,
-      desc: "If you are a small business amn please select this plan",
-      amount: 999,
-      memory: 100,
-      userNumber: "Unlimited",
-      tags: false,
-    },
-  ],
-  folderTypes : [
-    {
-      id: 1,
-      value: "general",
-      label: "General",
-    },
-    {
-      id: 2,
-      value: "shared",
-      label: "Shared",
-    },
-    {
-      id: 3,
-      value: "secure",
-      label: "Secure",
-    },
-  ],
-  dateFormat:[
-    {
-      id: 0,
-      label: "MM/DD/YYYY",
-      value: "MM/DD/YYYY",
-    },
-    {
-      id: 1,
-      label: "DD/MM/YYYY",
-      value: "DD/MM/YYYY",
-    },
-    {
-      id: 2,
-      label: "YYYY/MM/DD",
-      value: "YYYY/MM/DD",
-    },
-  ],
-  languageOptions : [
-    {
-      id: 0,
-      label: "English (United States)",
-      value: "English (United States)",
-    },
-    {
-      id: 1,
-      label: "English (United Kingdom)",
-      value: "English (United Kingdom)",
-    },
-    {
-      id: 2,
-      label: "French",
-      value: "French",
-    },
-    {
-      id: 3,
-      label: "Spanish",
-      value: "Spanish",
-    },
-    {
-      id: 4,
-      label: "Chinese",
-      value: "Chinese",
-    },
-    {
-      id: 5,
-      label: "Bangla",
-      value: "Bangla",
-    },
-  ],
-  timezoneFormat : [
-    {
-      id: 0,
-      label: "Bangladesh (GMT +6)",
-      value: "Bangladesh (GMT +6)",
-    },
-    {
-      id: 1,
-      label: "United Kingdom (GMT +0)",
-      value: "United Kingdom (GMT +0)",
-    },
-    {
-      id: 2,
-      label: "Spain (GMT +1)",
-      value: "Spain (GMT +1)",
-    },
-    {
-      id: 6,
-      label: "China (GMT +8)",
-      value: "China (GMT +8)",
-    },
-    {
-      id: 4,
-      label: "Australia (GMT +9)",
-      value: "Australia (GMT +9)",
-    },
-    {
-      id: 3,
-      label: "Brazil (GMT -3)",
-      value: "Brazil (GMT -3)",
-    },
-    {
-      id: 5,
-      label: "United States (GMT -8)",
-      value: "United States (GMT -8)",
-    },
-  ],
 }
 export default data;
 
+const determineIcon = (type) => {
+  switch(type) {
+    case 'TXT':
+    case 'EPUB':
+      return 'fileText';
+    case 'PDF':
+      return 'filePDF';
+    case 'DOCX':
+      return 'fileDoc';
+    case 'XLSX':
+      return 'fileSheet';
+    case 'PPTX':
+      return 'filePPT';
+    case 'MD':
+      return 'fileCode';
+    default:
+      return 'fileText';
+  }
+}
+
+export const getFiles = async () => {
+  let files = []
+  try {
+    const respone = await fetch('http://127.0.0.1:8000/files?email=test@test.com&uid=1&loginAuth=dGVzdEB0ZXN0LmNvbTE=', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    const respone_info = await respone.json()
+    const count = respone_info["count"]
+    const data = respone_info["data"]
+    for (let i = 0; i < count; i++) {
+      const type = data[i]["Type"].toUpperCase()
+      const icon = determineIcon(type)
+      let description;
+      if (data[i]["Description"] != '')
+        description = JSON.parse(data[i]["Description"].replace(/'/g, '"'));
+      else 
+        description = {"Author": "", "Abstract": "", "Cover": ""}
+      files.push({
+        id: data[i]["FID"],
+        name: data[i]["Filename"],
+        type: type,
+        icon: icon,
+        starred: false,
+        author: description["Author"],
+        abstract: description["Abstract"],
+        cover: description["Cover"]
+      })
+    }
+  } catch (error) {
+    console.log(error)
+  }
+  return files
+}
+
+/*
 export const files = [
   {
-    id: 'folder001',
-    name: 'UI Design',
-    ext: 'zip',
-    time: '02:07 PM',
-    date: '03 Mar',
-    icon: 'folder',
-    size: 87,
-    type: 'folder',
+    id: '0',
+    name: 'test.txt',
+    icon: 'fileText',
+    type: 'file',
     starred: true,
-    access:['uid001', 'uid003', 'uid005']
+    abstract: 'Fuck',
+    author: 'Hoyue',
+    cover: ''
+  },
+]
+*/
+
+/*
+export const files = [
+  {
+    id: '0',
+    name: 'test.txt',
+    icon: 'fileText',
+    type: 'file',
+    starred: true,
+    abstract: 'Fuck',
+    author: 'Hoyue',
+    cover: ''
   },
   {
     id: 'folder002',
@@ -424,3 +342,4 @@ export const files = [
     deleted: '02:07 PM, 03 Mar'
   },
 ]
+*/

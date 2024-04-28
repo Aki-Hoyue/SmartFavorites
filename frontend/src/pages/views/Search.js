@@ -1,39 +1,183 @@
 import React, { useState } from 'react';
-import { Button } from "reactstrap";
+import { Button, List, Modal, ModalHeader, ModalBody } from "reactstrap";
+import FileCard from '../components/FileCard';
+import { set } from 'react-hook-form';
+import { useFileManager, useFileManagerUpdate } from "../components/Context";
+import Toast from '../components/Toast';
 
+const SearchPage = ({ searchOnline }) => {
+    const [showToast, setShowToast] = useState(false);
+    const [toastText, setToastText] = useState('');
+    const [toastIcon, setToastIcon] = useState('alert-circle');
+    const [toastReplay, setToastReplay] = useState(false);
+    const setToast = async (text, icon) => {
+        if (!showToast) {
+        setToastReplay(false);
+        }
+        else {
+        setToastReplay(true);
+        }
+        setToastText(text);
+        setToastIcon(icon);
+        setShowToast(true);
+    }
 
-const SearchPage = () => {
+    const {fileManagerUpdate} = useFileManagerUpdate();
+    const [search, setSearch] = useState("");
+    const [searchResult, setSearchResult] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [empty, setEmpty] = useState(false);
+    const [importStatus, setImportStatus] = useState(false);
+    const [fileInfo, setFileInfo] = useState(null);
+    const [bookInfo, setBookInfo] = useState({});
+
+    const handleSearch = async () => {
+        if (searchResult.length > 0) {
+            setSearchResult([]);
+        }
+        setEmpty(false);
+        if (!search){
+            setEmpty(true);
+            return;
+        }
+        setLoading(true);
+        const response = await fetch('http://localhost:8000/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                keyword: search,
+                email: "test@test.com",
+                uid: "1",
+                loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+            }),
+        });
+        const result = await response.json();
+        if (result["status_code"] !== 200) {
+            console.error('Search failed:', result["detail"]);
+            setToast('Search failed: ' + result["detail"], 'cross-circle');
+        }
+        else {
+            setSearchResult(result["data"]);
+            setLoading(false);
+        }
+    }
+
+    const importToFile = async () => {
+        const filename = bookInfo.title;
+        const author = bookInfo.author;
+        const abstract = bookInfo.abstract;
+        const cover = bookInfo.image;
+
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/modifyFiles/${fileInfo}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                email: "test@test.com",
+                uid: "1",
+                loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+                filename: filename,
+                author: author,
+                abstract: abstract,
+                cover: cover
+              })
+            });
+            const result = await response.json();
+            if (result["status_code"] !== 200) {
+              console.error('Import failed:', result);
+              setImportStatus(false);
+              setToast('Import failed: ' + result["detail"], 'cross-circle');
+            }
+            else {
+              fileManagerUpdate.modifyFile(fileInfo, filename, author, abstract, cover);
+              setImportStatus(false);
+              setToast('Import successfully', 'check-circle');
+            }
+          } catch (error) {
+            console.error(error);
+            setImportStatus(false);
+            setToast('Import failed: ' + error, 'cross-circle');
+          }
+    }
+
+    const getFile = (file) => {
+        console.log(file.id);
+        setFileInfo(file.id);
+        setImportStatus(false);
+        importToFile();
+    }
+
     return (
         <>
-            <div className="card card-bordered">    
-                <div className="row">
-                    <div className="col-md-3">
-                        <img src="https://pic.arkread.com/cover/column/f/65523613.1698030480.jpg" className="card-img-left w-100 h-auto" alt="" />
-                    </div>
-                    <div className="col-md-8">
-                        <div className="card-inner">        
-                            <h4 className="card-title">Book Title</h4>
-                            <h5 className="card-subtitle mb-2 text-muted">SubTitle</h5>  
-                            <h6 className="card-subtitle mb-2 text-muted">Author</h6>      
-                            <p className="card-text">Abstract</p>        
-                            <a href="https://read.douban.com/ebook/30541512" className="btn btn-info">Details</a>
-                            &nbsp;&nbsp;
-                            <a href="#" className="btn btn-light">Import to the File</a>    
-                        </div>  
-                    </div>
+            {showToast && <Toast text={toastText} icon={toastIcon} showToast={showToast} setShowToast={setShowToast} replay={toastReplay} setReplay={setToastReplay}></Toast>}
+            <h6 className="nk-fmg-title">Search your book infomation online.</h6>
+            <div className="nk-fmg-body-head d-flex flex-wrap align-items-center">
+                <div style={{ flex: 1 }} className="nk-fmg-search">
+                    <input
+                        type="text"
+                        className="form-control border border-primary form-focus-none"
+                        placeholder="Search book infomation online"
+                        value={search || ''}
+                        onChange={(ev) => setSearch(ev.target.value)}
+                        onKeyDown={(ev) => ev.key === 'Enter' && !loading && handleSearch()}
+                    />
+                </div>
+                <div className="d-flex align-items-center">
+                    <Button color="primary" onClick={handleSearch} disabled={loading}>{loading && <><span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> <span>Loading...</span></>}{!loading && <span>Search</span>}</Button>
                 </div>
             </div>
+            {searchResult.length === 0 && 
+                <div className="alert alert-info alert-icon" role='alert'>
+                    <em className="icon ni ni-alert-circle"></em>
+                    Result will be shown here, go to search your book infomation online~
+                </div>}
+            {empty && <div className="alert alert-danger alert-icon" role='alert'>
+                <em className="icon ni ni-cross-circle"></em>
+                Please enter your book infomation
+            </div>}
+            <List>
+                {searchResult.map((book, index) => (
+                    <div className="card card-bordered" key={index}>
+                        <div className="row">
+                            <div className="col-md-3">
+                                <img src={book.image} className="card-img-left w-100 h-auto" alt="" />
+                            </div>
+                            <div className="col-md-8">
+                                <div className="card-inner">
+                                    <h4 className="card-title">{book.title}</h4>
+                                    <h6 className="card-subtitle mb-2 text-muted">{book.author}</h6>
+                                    <p className="card-text">{book.abstract}</p>
+                                    <a href={`${book.detail}`} className="btn btn-info" target="_blank">Details</a>
+                                    &nbsp;&nbsp;
+                                    <a href="#import" className="btn btn-light" onClick={() => {setImportStatus(true); setBookInfo(book)}}>Import to the File</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </List>
+            {importStatus && <Modal isOpen={importStatus} toggle={() => setImportStatus(false)} className="modal-dialog-centered modal-md">
+                <ModalBody>
+                    <FileCard setImportStatus={setImportStatus} getFile={getFile} />
+                </ModalBody>
+            </Modal>}
         </>
     )
 }
 
 const Search = () => {
-    
+
     return (
         <>
-            <SearchPage /> 
+            <SearchPage searchOnline={true} />
         </>
     )
 }
 
 export default Search
+
+

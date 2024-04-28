@@ -5,7 +5,8 @@ import User from "./dropdown/user/UserSubscription";
 import Notification from "./dropdown/notification/Notification";
 import Toggle from "../sidebar/Toggle";
 import { Link } from "react-router-dom";
-
+import { Icon } from "../../components/Component";
+import { useFileManagerUpdate } from "../../pages/components/Context";
 import { useTheme, useThemeUpdate } from '../provider/Theme';
 
 const Header = ({ fixed, className, ...props }) => {
@@ -19,6 +20,7 @@ const Header = ({ fixed, className, ...props }) => {
     [`${className}`]: className,
   });
 
+  const {fileManagerUpdate} = useFileManagerUpdate();
 
   return (
     <div className={headerClass}>
@@ -36,7 +38,16 @@ const Header = ({ fixed, className, ...props }) => {
                 <Notification />
               </li>
               <li className="d-lg-none">
-                <Toggle icon="menu" className="toggle nk-quick-nav-icon me-n1" click={themeUpdate.sidebarVisibility} />
+                <a
+                  href="#menu"
+                  onClick={(ev) => {
+                      ev.preventDefault();
+                      fileManagerUpdate.asideVisibility();
+                  }}
+                  className="btn btn-trigger btn-icon toggle"
+                  >
+                      <Icon name="menu-alt-r"></Icon>
+                </a>
               </li>
             </ul>
           </div>

@@ -10,7 +10,7 @@ import { useFileManager, useFileManagerUpdate } from "./Context";
 
 import { BlockTitle, BlockBetween, BlockHead, BlockHeadContent, Icon } from "../../components/Component";
 import { Button, DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown, Modal } from "reactstrap";
-const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, ...props}) => {
+const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, rss, ...props}) => {
 
     const {fileManager} = useFileManager();
     const {fileManagerUpdate} = useFileManagerUpdate();
@@ -23,24 +23,6 @@ const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, 
     const toggleSearch = () => {
         setSearch(!search);
     };
-    
-    const handleSearch = async () => {
-        const data = {
-            keyword: search,
-            email: "test@test.com",
-            uid: 1,
-            loginAuth: "dGVzdEB0ZXN0LmNvbTE="
-        }
-        console.log(data);
-        const response = await fetch('http://127.0.0.1:8000/api/search', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-        console.log(response);
-    };
 
     const toggleCreateModal = () => {
       setCreateModal(!createModal);
@@ -48,6 +30,10 @@ const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, 
     const toggleUploadModal = () => {
       setUploadModal(!uploadModal);
     };
+
+    const addRSSFeed = () => {
+        console.log('addRSSFeed')
+    }
 
     useLayoutEffect(() => {
         fileManagerUpdate.search('')
@@ -78,26 +64,12 @@ return (
             </ul>
         </div>
         </div>}
-        {searchOnline && <div className="nk-fmg-body-head d-flex flex-wrap align-items-center">
-                <div style={{flex: 1}} className="nk-fmg-search">
-                    <input
-                        type="text"
-                        className="form-control border border-primary form-focus-none"
-                        placeholder="Search book infomation online"
-                        value={search || ''}
-                        onChange={(ev) => setSearch(ev.target.value)}
-                    />
-                </div>
-                <div className="d-flex align-items-center">
-                    <Button color="primary" onClick={handleSearch}>Search</Button>
-                </div>
-            </div>
-        }
         <div className="nk-fmg-body-content">
             <BlockHead size="sm">
                 <BlockBetween className="position-relative">
                     <BlockHeadContent>
                         {(title && fileManager.search === '') && title} 
+                        {(title && fileManager.search !== '') && <BlockTitle page>{title}</BlockTitle>}
                         {fileManager.search !== '' && <BlockTitle page>Search for : <span className="fw-normal ms-2 text-muted">{fileManager.search}</span></BlockTitle>}
                     </BlockHeadContent>
                     <BlockHeadContent>
@@ -131,21 +103,8 @@ return (
                                     </DropdownMenu>
                                 </UncontrolledDropdown>
                             </li>}
-
-                            {recoveryFilter &&<li className="d-lg-none">
-                                <a
-                                href="#folder"
-                                onClick={(ev) => {
-                                    ev.preventDefault();
-                                    fileManagerUpdate.recoveryFilter();
-                                }}
-                                className="btn btn-trigger btn-icon toggle-expand"
-                                >
-                                    <Icon name="opt"></Icon>
-                                </a>
-                            </li>}
                             
-                            {!searchOnline && <li className="d-lg-none">
+                            {!searchOnline && !rss && <li className="d-lg-none">
                                 <UncontrolledDropdown>
                                 <DropdownToggle
                                     tag="a"
@@ -174,18 +133,6 @@ return (
                                 </DropdownMenu>
                                 </UncontrolledDropdown>
                             </li>}
-                            <li className="d-lg-none me-n1">
-                                <a
-                                href="#menu"
-                                onClick={(ev) => {
-                                    ev.preventDefault();
-                                    fileManagerUpdate.asideVisibility();
-                                }}
-                                className="btn btn-trigger btn-icon toggle"
-                                >
-                                    <Icon name="menu-alt-r"></Icon>
-                                </a>
-                            </li>
                         </ul>
                     </BlockHeadContent>
                     {searchBar && <div className={`search-wrap px-2 d-lg-none ${search ? "active" : ""}`}>
@@ -214,18 +161,7 @@ return (
                     </div>}
 
                     {(viewFilter || fileManager.search !== '') && <BlockHeadContent className="d-none d-lg-block"><ViewFilter/></BlockHeadContent>}
-                    {recoveryFilter && <BlockHeadContent className="d-none d-lg-flex d-xl-none">
-                        <a
-                        href="#folder"
-                        onClick={(ev) => {
-                            ev.preventDefault();
-                            fileManagerUpdate.recoveryFilter();
-                        }}
-                        className="btn btn-trigger btn-icon toggle-expand"
-                        >
-                            <Icon name="opt"></Icon>
-                        </a>  
-                    </BlockHeadContent>}
+                    
                 </BlockBetween>
             </BlockHead>
             {fileManager.search === '' ? props.children : <Files files={searchResult} />}
