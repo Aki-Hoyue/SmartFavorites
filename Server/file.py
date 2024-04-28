@@ -1,5 +1,5 @@
 import shutil
-from fastapi import FastAPI, File, UploadFile, APIRouter
+from fastapi import FastAPI, File, Form, UploadFile, APIRouter
 from databases import Database
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -22,6 +22,15 @@ class fileInfo(BaseModel):
     uid: str
     loginAuth: str
 
+class modifyInfo(BaseModel):
+    email: str
+    uid: str
+    loginAuth: str
+    filename: str
+    author: str
+    abstract: str
+    cover: str
+
 @app.get("/files")
 async def getfiles(email: str, uid: str, loginAuth: str):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
@@ -33,7 +42,8 @@ async def getfiles(email: str, uid: str, loginAuth: str):
         result = await database.fetch_all(query, {"uid": uid})
         return {
             "status_code": 200,
-            "data": result
+            "data": result,
+            "count": len(result)
         }
     else:
         return {
@@ -42,7 +52,7 @@ async def getfiles(email: str, uid: str, loginAuth: str):
         }
         
 @app.post("/upload")
-async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(...)):
+async def upload(email: str = Form(...), uid: str = Form(...), loginAuth: str = Form(...), file: UploadFile = File(...)):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
@@ -67,7 +77,7 @@ async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(.
         await database.execute(query, {
             "FID": fid,
             "Filename": file.filename,
-            "Type": file_type,
+            "Type": file_type.replace(".", "").upper(),
             "Description": description,
             "FileAddress": file_path,
             "UID": uid
@@ -75,8 +85,14 @@ async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(.
 
         return {
             "status_code": 200,
-            "fid": fid,
-            "file_path": file_path
+            "data": {
+                "FID": fid,
+                "Filename": file.filename,
+                "Type": file_type.replace(".", "").upper(),
+                "Description": description,
+                "FileAddress": file_path,
+                "UID": uid
+            }
         }
         
     else:
@@ -85,7 +101,7 @@ async def upload(email: str, uid: str, loginAuth: str, file: UploadFile = File(.
             "detail": "User not logged in"
         }
         
-@app.post("/delete")
+@app.post("/delete/{fid}")
 async def delete(request: fileInfo, fid: int):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
     email = request.email
@@ -118,29 +134,40 @@ async def delete(request: fileInfo, fid: int):
             "detail": "User not logined"
         }
 
-@app.post("/modifyFiles")
-async def modify_files(request: fileInfo, fid: int, filename: str = "", description: str = ""):
+@app.post("/modifyFiles/{fid}")
+async def modify_files(request: modifyInfo, fid: int):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
+    filename = request.filename
+    author = request.author
+    abstract = request.abstract
+    cover = request.cover
     email = request.email
     uid = request.uid
     loginAuth = request.loginAuth
     loginAuth = base64.b64decode(loginAuth).decode('utf-8')
     
     if loginAuth == email + uid:
-        query = "UPDATE fileInfo SET Filename = :Filename, Description = :Description WHERE FID = :FID"
-        try: 
-            await database.execute(query, {"Filename": filename, "Description": description, "FID": fid})
-            return {"status_code": 200}
-        except Exception:
-            return {"status_code": 400}
+        if filename == "" and author == "" and abstract == "":
+            return {
+                "status_code": 400,
+                "detail": "No modification"
+            }
+        query = "UPDATE fileInfo SET Filename = :filename, Description = '{\"Author\":\" " + author + "\", \"Abstract\": \"" + abstract + "\", \"Cover\": \"" + cover + "\"}' " + "WHERE FID = :fid"
+        await database.execute(query, {"filename": filename, "fid": fid})
+        
+        return {
+            "status_code": 200,
+            "detail": "Modify success"
+        }
+        
     else:
         return {
             "status_code": 401,
             "detail": "User not logined"
         }
 
-@app.post("/fileSearch")
-async def file_search(request: fileInfo, keyword: str):
+@app.post("/findPath/{fid}")
+async def file_search(request: fileInfo, fid: int):
     await database.execute("CREATE TABLE IF NOT EXISTS fileInfo (FID INTEGER PRIMARY KEY NOT NULL, Filename TEXT NOT NULL, Type TEXT NOT NULL, Description TEXT, FileAddress TEXT NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY(UID) REFERENCES userInfo(UID))")
     email = request.email
     uid = request.uid
@@ -148,14 +175,14 @@ async def file_search(request: fileInfo, keyword: str):
     loginAuth = base64.b64decode(loginAuth).decode('utf-8')
     
     if loginAuth == email + uid:
-        query = "SELECT * FROM fileInfo WHERE (Filename LIKE :keyword OR Description LIKE :keyword) AND Email = :email"
-        try:
-            result = await database.fetch_all(query, {"keyword": "%" + keyword + "%", "email": email})
+        query = "SELECT FileAddress FROM fileInfo WHERE FID = :fid"
+        file_path = await database.fetch_one(query, {"fid": fid})
+        if file_path is not None:
             return {
                 "status_code": 200,
-                "data": result
+                "path": file_path["FileAddress"]
             }
-        except Exception:
+        else:
             return {
                 "status_code": 400,
                 "detail": "File not found"
