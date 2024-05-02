@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "reactstrap";
 import icons from "../components/Icons"
 import { Icon, Col, Row } from "../../components/Component";
+import { useCookies } from 'react-cookie';
 
-const OCRModal = ({ file, setOCRShow }) => {
+const OCRModal = ({ file, setOCRShow, startNow }) => {
+  const [cookies] = useCookies(['userInfo']);
   const [isProcessing, setIsProcessing] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [error, setError] = useState("");
@@ -19,9 +21,9 @@ const OCRModal = ({ file, setOCRShow }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            email: 'test@test.com',
-            uid: '1',
-            loginAuth: 'dGVzdEB0ZXN0LmNvbTE=',
+            email: cookies.userInfo.email,
+            uid: cookies.userInfo.uid,
+            loginAuth: cookies.userInfo.loginAuth,
             languages: language
         }),
       });
@@ -49,6 +51,12 @@ const OCRModal = ({ file, setOCRShow }) => {
   const handleClose = () => {
     setOCRShow(false);
   };
+
+  useEffect(() => {
+    if (startNow) {
+      handleOCR();
+    }
+  }, [startNow===true]);
 
   return (
     <React.Fragment>

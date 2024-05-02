@@ -2,8 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { set } from 'react-hook-form';
 import { Icon } from '../../components/Component';
 import { Col } from 'reactstrap';
+import { useCookies } from 'react-cookie';
 
-const TTSModal = ({ id, setTTSShow }) => {
+const TTSModal = ({ id, setTTSShow, startNow }) => {
+    const [cookies] = useCookies(['userInfo']);
     const [voice, setVoice] = useState('zh-CN-XiaoxiaoNeural');
     const [isProcessing, setIsProcessing] = useState(false);
     const [audioSrc, setAudioSrc] = useState('');
@@ -14,6 +16,8 @@ const TTSModal = ({ id, setTTSShow }) => {
     const audioRef = useRef(null);
 
     const handleTTSClick = async () => {
+        if (textContent === '')
+            return;
         setIsProcessing(true);
         setError('');
         try {
@@ -23,9 +27,9 @@ const TTSModal = ({ id, setTTSShow }) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: 'test@test.com',
-                    uid: '1',
-                    loginAuth: 'dGVzdEB0ZXN0LmNvbTE=',
+                    email: cookies.userInfo.email,
+                    uid: cookies.userInfo.uid,
+                    loginAuth: cookies.userInfo.loginAuth,
                     text: textContent,
                     voice: voice,
                 }),
@@ -33,7 +37,7 @@ const TTSModal = ({ id, setTTSShow }) => {
             const data = await response.json();
             if (data.status_code === 200) {
                 console.log(data.data);
-                setAudioSrc("http://127.0.0.1:8000" + data.data);
+                setAudioSrc(`http://127.0.0.1:8000/tts_files/TTSResult.mp3?${new Date().getTime()}`);
                 setIsPlaying(true);
                 setIsEnd(false);
             } else {
@@ -48,7 +52,7 @@ const TTSModal = ({ id, setTTSShow }) => {
 
     const getTextContent = async () => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/getText/${id}?email=test@test.com&uid=1&loginAuth=dGVzdEB0ZXN0LmNvbTE=`, {
+            const response = await fetch(`http://127.0.0.1:8000/getText/${id}?email=${cookies.userInfo.email}&uid=${cookies.userInfo.uid}&loginAuth=${cookies.userInfo.loginAuth}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -93,6 +97,12 @@ const TTSModal = ({ id, setTTSShow }) => {
     useEffect(() => {
         getTextContent();
     }, []);
+
+    useEffect(() => {
+        if (startNow) {
+            handleTTSClick();
+        }
+    }, [startNow==true]);
 
     return (
         <React.Fragment>

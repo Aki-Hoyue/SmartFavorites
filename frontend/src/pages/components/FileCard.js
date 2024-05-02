@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from "reactstrap";
+import { Button, Col, Row } from "reactstrap";
 import { Icon } from "../../components/Component";
 import { useFileManager } from "./Context";
 
@@ -25,12 +25,12 @@ const FileCard = ({ setImportStatus, getFile }) => {
             <div className="nk-files-list">
                 {filesList.map((file) => (
                     <div className="card card-bordered" key={file.id}>
-                    <div className="row no-gutters">
-                        <div className="col-md-3">
+                    <Row className="card-inner card-inner-md">
+                        {file.cover && <Col lg={4}>
                         <img src={file.cover} className="card-img-left w-100 h-auto border rounded" alt="File Cover" style={{ marginTop: "15%", marginLeft: "15%", marginRight: "5%", marginBottom: "15%" }}/>
-                        </div>
-                        <div className="col-md-9">
-                        <div className="card-inner">
+                        </Col>}
+                        <Col lg={file.cover ? 8 : 12}>
+                        <div className="card-inner w-500">
                             <h4 className="card-title">{file.name}</h4>
                             <h6 className="card-subtitle mb-2 text-muted">{file.author}</h6>
                             <p className="card-text">{file.abstract}</p>
@@ -38,8 +38,8 @@ const FileCard = ({ setImportStatus, getFile }) => {
                             <Button className="btn btn-light" onClick={() => {getFile(file); setImportStatus(false)}}>Import</Button>
                             </div>
                         </div>
-                        </div>
-                    </div>
+                        </Col>
+                    </Row>
                     </div>
                 ))}
             </div>

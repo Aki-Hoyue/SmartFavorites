@@ -8,19 +8,12 @@ import Starred from "../pages/Starred";
 import Settings from "../pages/Settings";
 import RSS from "../pages/RSS"
 import Preview from "../pages/Preview";
-import Error404Classic from "../pages/error/404-classic";
-import Error404Modern from "../pages/error/404-modern";
-import Error504Modern from "../pages/error/504-modern";
-import Error504Classic from "../pages/error/504-classic";
+import Error404 from "../pages/error/404";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
-import ForgotPassword from "../pages/auth/ForgotPassword";
-import Success from "../pages/auth/Success";
 
-import Layout from "../layout/Index";
 import LayoutApp from "../layout/Index-app";
 import LayoutNoSidebar from "../layout/Index-nosidebar";
-import RSSPage from "../pages/views/RSS";
 
 const Pages = () => {
   const location = useLocation();
@@ -42,18 +35,11 @@ const Pages = () => {
         </Route>
 
         <Route path={`${process.env.PUBLIC_URL}`} element={<LayoutNoSidebar />}>
-          <Route path="auth-success" element={<Success />}></Route>
-          <Route path="auth-reset" element={<ForgotPassword />}></Route>
           <Route path="register" element={<Register />}></Route>
           <Route path="login" element={<Login />}></Route>
 
-          <Route path="errors">
-            <Route path="404-modern" element={<Error404Modern />}></Route>
-            <Route path="404-classic" element={<Error404Classic />}></Route>
-            <Route path="504-modern" element={<Error504Modern />}></Route>
-            <Route path="504-classic" element={<Error504Classic />}></Route>
-          </Route>
-          <Route path="*" element={<Error404Modern />}></Route>
+        
+        <Route path="*" element={<Error404 />}></Route>
         </Route>
 
       </Routes>

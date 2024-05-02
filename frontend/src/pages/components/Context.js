@@ -3,6 +3,7 @@ import React, { useState, createContext, useContext, useEffect } from "react";
 import data, { getFiles } from "../Data";
 import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 import { set } from "react-hook-form";
+import { useCookies } from "react-cookie";
 
 const FileManager = createContext();
 const FileManagerUpdate = createContext();
@@ -17,7 +18,7 @@ export function useFileManagerUpdate(){
 
 
 const FileManagerProvider = ({ ...props }) => {
-
+  const [cookies] = useCookies(['userInfo']);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentFileToDelete, setCurrentFileToDelete] = useState(null);
   const [deleteMessage, setDeleteMessage] = useState('');
@@ -37,7 +38,7 @@ const FileManagerProvider = ({ ...props }) => {
 
   useEffect(() => {
     const loadFiles = async () => {
-      const fetchedFiles = await getFiles();
+      const fetchedFiles = await getFiles(cookies.userInfo);
       setFileManager(prevFileManager => ({
         ...prevFileManager,
         files: fetchedFiles
@@ -89,15 +90,15 @@ const FileManagerProvider = ({ ...props }) => {
     let index = fileManager.files.findIndex((item) => item.id === file.id);
     if(index !== -1) {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/delete/${index}`, {
+        const response = await fetch(`http://127.0.0.1:8000/delete/${file.id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: "test@test.com",
-            uid: "1",
-            loginAuth: "dGVzdEB0ZXN0LmNvbTE="
+            email: cookies.userInfo.email,
+            uid: cookies.userInfo.uid,
+            loginAuth: cookies.userInfo.loginAuth
           }),
         });
         const result = await response.json();

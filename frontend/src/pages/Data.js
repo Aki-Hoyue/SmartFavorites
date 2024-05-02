@@ -60,10 +60,13 @@ const determineIcon = (type) => {
   }
 }
 
-export const getFiles = async () => {
+export const getFiles = async (userInfo) => {
+  const email = userInfo.email;
+  const uid = userInfo.uid;
+  const loginAuth = userInfo.loginAuth;
   let files = []
   try {
-    const respone = await fetch('http://127.0.0.1:8000/files?email=test@test.com&uid=1&loginAuth=dGVzdEB0ZXN0LmNvbTE=', {
+    const respone = await fetch(`http://127.0.0.1:8000/files?email=${email}&uid=${uid}&loginAuth=${loginAuth}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

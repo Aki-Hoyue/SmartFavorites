@@ -1,18 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import UserAvatar from "../../../../components/user/UserAvatar";
 import { DropdownToggle, DropdownMenu, Dropdown } from "reactstrap";
 import { Icon } from "../../../../components/Component";
 import { LinkList, LinkItem } from "../../../../components/links/Links";
 import { useTheme, useThemeUpdate } from "../../../provider/Theme";
+import { useCookies } from 'react-cookie';
 
 const User = () => {
+  const [cookies, , removeCookie] = useCookies(['userInfo']);
   const theme = useTheme();
   const themeUpdate = useThemeUpdate();
   const [open, setOpen] = useState(false);
+  const [avatar, setAvatar] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
   const toggle = () => {
     themeUpdate.sidebarHide();
     setOpen((prevState) => !prevState)
   };
+
+  const signOut = () => {
+      removeCookie('userInfo', { path: '/' });
+      window.history.pushState("","",`${"/login"}`);
+      window.location.reload();
+  };
+
+  useEffect(() => {
+    const userInfo = cookies.userInfo ? cookies.userInfo : undefined;
+    if (userInfo === undefined) {
+      window.history.pushState("","",`${"/login"}`);
+      window.location.reload();
+    }
+    else {
+      setAvatar(userInfo["avatar"]);
+      setUsername(userInfo["name"]);
+      setEmail(userInfo["email"]);
+    }
+  }, [cookies]);
 
   return (
     <Dropdown isOpen={open} className="user-dropdown" toggle={toggle}>
@@ -25,18 +50,16 @@ const User = () => {
         }}
       >
         <div className="user-toggle">
-          <UserAvatar icon="user-alt" className="sm" />
+          <UserAvatar image={avatar} className="sm" icon={avatar ? "" : "user-alt"} />
         </div>
       </DropdownToggle>
       <DropdownMenu end className="dropdown-menu-md dropdown-menu-s1">
         <div className="dropdown-inner user-card-wrap bg-lighter d-none d-md-block">
           <div className="user-card sm">
-            <div className="user-avatar">
-              
-            </div>
+            <UserAvatar image={avatar} className="sm" icon={"user-alt"} />
             <div className="user-info">
-              <span className="lead-text">Hoyue</span>
-              <span className="sub-text">lysdnosed@gmail.com</span>
+              <span className="lead-text">{username}</span>
+              <span className="sub-text">{email}</span>
             </div>
           </div>
         </div>
@@ -62,7 +85,7 @@ const User = () => {
         </div>
         <div className="dropdown-inner">
           <LinkList>
-            <a href={`${process.env.PUBLIC_URL}/auth-login`}>
+            <a href="#signout" onClick={signOut}>
               <Icon name="signout"></Icon>
               <span>Sign Out</span>
             </a>

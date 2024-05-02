@@ -6,8 +6,10 @@ import { bytesToMegaBytes } from "../../utils/Utils";
 import {iconsType} from '../components/Icons';
 import { set } from "react-hook-form";
 import { useFileManagerUpdate } from "../components/Context";
+import { useCookies } from 'react-cookie';
 
 const Upload = ({ toggle }) => {
+  const [cookies] = useCookies(['userInfo']);
   const {fileManagerUpdate} = useFileManagerUpdate();
   const [files, setFiles] = useState([]);
   const [error, setError] = useState(false);
@@ -88,9 +90,9 @@ const Upload = ({ toggle }) => {
       setErrorType('');
     
     const formData = new FormData();
-    formData.append("email", 'test@test.com');
-    formData.append("uid", 1);
-    formData.append("loginAuth", 'dGVzdEB0ZXN0LmNvbTE=');
+    formData.append("email", cookies.userInfo.email);
+    formData.append("uid", cookies.userInfo.uid);
+    formData.append("loginAuth", cookies.userInfo.loginAuth);
     formData.append("file", files[0]);
 
     try {

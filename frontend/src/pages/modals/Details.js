@@ -3,12 +3,16 @@ import { Icon, Col, Row } from "../../components/Component";
 import icons from "../components/Icons"
 import { set } from "react-hook-form";
 import { useFileManager, useFileManagerUpdate } from "../components/Context";
+import { useCookies } from 'react-cookie';
+import { useNavigate } from 'react-router-dom';
 
 const Details = ({ file, toggle, triggerDelete, triggerDownload }) => {
+  const [cookies] = useCookies(['userInfo']);
   const {fileManagerUpdate} = useFileManagerUpdate();
   const [modifyMode, setModifyMode] = useState(false);
   const [emptyName, setEmptyName] = useState(false);
-
+  const navigate = useNavigate();
+    
   const modifyInfo = async (filename, author, abstract, cover=file.cover) => {
     if(filename == file.name && author == file.author && abstract == file.abstract && cover == file.cover) {
       setModifyMode(false);
@@ -27,9 +31,9 @@ const Details = ({ file, toggle, triggerDelete, triggerDownload }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: "test@test.com",
-          uid: "1",
-          loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+          email: cookies.userInfo.email,
+          uid: cookies.userInfo.uid,
+          loginAuth: cookies.userInfo.loginAuth,
           filename: filename,
           author: author,
           abstract: abstract,
@@ -55,6 +59,9 @@ const Details = ({ file, toggle, triggerDelete, triggerDownload }) => {
     }
   }
 
+  const toSearch = () => {
+    navigate('/search', { state: {title: file.name} });
+  }
   return (
     <React.Fragment>
       <div className="modal-header align-center">
@@ -140,8 +147,9 @@ const Details = ({ file, toggle, triggerDelete, triggerDownload }) => {
             <ul className="btn-toolbar g-3">
               {(file.type === "TXT" || file.type === "PDF") &&<li>
                 <a
-                  href="/search"
+                  href="#search"
                   className="btn btn-secondary"
+                  onClick={toSearch}
                 >
                   Search Book Infomation
                 </a>

@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import classNames from 'classnames';
 import { useFileManager, useFileManagerUpdate } from "../components/Context";
 import icons from './Icons';
@@ -7,16 +7,19 @@ import { Icon } from "../../components/Component";
 import Details from "../modals/Details";
 import {Render} from '../views/Render';
 import { set } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import TTSModal from '../modals/TTSModal';
 import OCRModal from '../modals/OCR';
+import { useCookies } from 'react-cookie';
 
 const File = ({item, fileView, page}) => {
+    const [cookies] = useCookies(['userInfo']);
     const navigate = useNavigate();
-
+    const location = useLocation();
     const [TTSShow, setTTSShow] = useState(false);
     const [OCRShow, setOCRShow] = useState(false);
-
+    const [TTSStart, setTTSStart] = useState(false);
+    const [OCRStart, setOCRStart] = useState(false);
     const {fileManagerUpdate} = useFileManagerUpdate();
     
     const [detailModal, setDetailModal] = useState(false);
@@ -28,9 +31,35 @@ const File = ({item, fileView, page}) => {
 
     const downloadFile = (file) => {
         const downloadLink = document.createElement("a");
-        downloadLink.href = "data:" + file.ext + ";charset=utf-8," + encodeURIComponent(file.name);
-        downloadLink.download = file.name;
-        downloadLink.click();
+        try {
+            const response = fetch(`http://127.0.0.1:8000/findPath/${file.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: cookies.userInfo.email,
+                    uid: cookies.userInfo.uid,
+                    loginAuth: cookies.userInfo.loginAuth,
+                })
+            });
+            const result = response.json();
+            if (result["status_code"] !== 200) {
+                downloadLink.href = "data:" + file.type + ";charset=utf-8," + encodeURIComponent(file.name);
+                downloadLink.download = file.name;
+                downloadLink.click();
+                console.error('Download failed:', result);
+            }
+            else {
+                const path = result["path"];
+                downloadLink.href = `http://localhost:8000${path}`;
+                downloadLink.download = file.name;
+                downloadLink.click();
+            }
+        }
+        catch (error) {
+            console.error(error);
+        }
     };
 
     const deleteFile = (file) => {
@@ -41,8 +70,10 @@ const File = ({item, fileView, page}) => {
             setDetailModal(true);
     }
 
-    const processTTS = () => {
+    const processTTS = (start=false) => {
         setTTSShow(true);
+        if (start)
+            setTTSStart(true);
     }
 
     const toPreview = (item) => {
@@ -50,16 +81,30 @@ const File = ({item, fileView, page}) => {
           fileId: item.id,
           fileName: item.name,
         };
-        navigate('/preview', { state: fileInfo });
+        navigate('/preview', { state: {fileInfo: fileInfo} });
       };
 
-    const OCRFile = (file) => {
+    const OCRFile = (start=false) => {
         setOCRShow(true);
+        if (start)
+            setOCRStart(true);
     }
+
+    useEffect(() => {
+        if (location.state?.ocr) {
+            const ocr = location.state.ocr;
+            if (ocr == item.id)
+                OCRFile(true);
+        }
+        else if (location.state?.tts) {
+            const tts = location.state.tts;
+            if (tts == item.id)
+                processTTS(true);
+        }
+    }, []);
 
     return (
         <>
-            
             <div className="nk-file-item nk-file">
                 <div className="nk-file-info">
                     <div className="nk-file-title">
@@ -112,13 +157,13 @@ const File = ({item, fileView, page}) => {
                                     </DropdownItem>
                                 </li>
                                 {item.type == "PDF" && <li>
-                                    <DropdownItem tag="a" href="#ocr" onClick={(ev) => {ev.preventDefault(); OCRFile(item)}}>
+                                    <DropdownItem tag="a" href="#ocr" onClick={(ev) => {ev.preventDefault(); OCRFile()}}>
                                         <Icon name="scan"></Icon>
                                         <span>OCR</span>
                                     </DropdownItem>
                                 </li>}
                                 {(item.type == "TXT" || item.type == "EPUB") && <li>
-                                    <DropdownItem tag="a" href="#tts" onClick={(ev) => {ev.preventDefault(); processTTS(item)}}>
+                                    <DropdownItem tag="a" href="#tts" onClick={(ev) => {ev.preventDefault(); processTTS()}}>
                                         <Icon name="mic"></Icon>
                                         <span>TTS</span>
                                     </DropdownItem>
@@ -138,11 +183,11 @@ const File = ({item, fileView, page}) => {
                 </Modal>
                 
                 <Modal isOpen={TTSShow} toggle={() => setTTSShow(!TTSShow)}>
-                    <TTSModal id={item.id} setTTSShow={setTTSShow} toggle={() => setTTSShow(!TTSShow)} />
+                    <TTSModal id={item.id} setTTSShow={setTTSShow} toggle={() => setTTSShow(!TTSShow)} startNow={TTSStart} />
                 </Modal>
 
                 <Modal isOpen={OCRShow} toggle={() => setOCRShow(!OCRShow)}>
-                    <OCRModal file={item} setOCRShow={setOCRShow} toggle={() => setOCRShow(!OCRShow)} />
+                    <OCRModal file={item} setOCRShow={setOCRShow} toggle={() => setOCRShow(!OCRShow)} startNow={OCRStart}/>
                 </Modal>
             </div>
         </>

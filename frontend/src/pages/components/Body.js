@@ -4,8 +4,6 @@ import ViewFilter, {options as viewOptions} from './ViewFilter';
 import Files from './Files';
 
 import Upload from "../modals/Upload";
-import CreateFolder from "../modals/CreateFolder";
-
 import { useFileManager, useFileManagerUpdate } from "./Context";
 
 import { BlockTitle, BlockBetween, BlockHead, BlockHeadContent, Icon } from "../../components/Component";
@@ -15,7 +13,6 @@ const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, 
     const {fileManager} = useFileManager();
     const {fileManagerUpdate} = useFileManagerUpdate();
 
-    const [createModal, setCreateModal] = useState(false);
     const [uploadModal, setUploadModal] = useState(false);
 
     const [search, setSearch] = useState(false);
@@ -24,9 +21,6 @@ const FilesBody = ({searchBar, title, viewFilter, recoveryFilter, searchOnline, 
         setSearch(!search);
     };
 
-    const toggleCreateModal = () => {
-      setCreateModal(!createModal);
-    };
     const toggleUploadModal = () => {
       setUploadModal(!uploadModal);
     };
@@ -166,9 +160,7 @@ return (
             </BlockHead>
             {fileManager.search === '' ? props.children : <Files files={searchResult} />}
         </div>
-        <Modal isOpen={createModal} size="md" toggle={toggleCreateModal}>
-            <CreateFolder toggle={toggleCreateModal} />
-        </Modal>
+        
         <Modal isOpen={uploadModal} size="md" toggle={toggleUploadModal}>
             <Upload toggle={toggleUploadModal} />
         </Modal>

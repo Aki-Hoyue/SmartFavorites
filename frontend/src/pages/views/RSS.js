@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Button, Row, Col, Modal, ModalHeader, ModalBody, Input, List, Table } from "reactstrap";
 import { Icon } from "../../components/Component";
 import Toast from '../components/Toast';
+import { useCookies } from 'react-cookie';
 
 const RSSPage = () => {
     const [showToast, setShowToast] = useState(false);
     const [toastText, setToastText] = useState('');
     const [toastIcon, setToastIcon] = useState('alert-circle');
     const [toastReplay, setToastReplay] = useState(false);
+    const [cookies] = useCookies(['userInfo']);
     const setToast = async (text, icon) => {
         if (!showToast) {
         setToastReplay(false);
@@ -39,15 +41,15 @@ const RSSPage = () => {
 
     const addRSSFeed = async () => {
         try {
-            await fetch('http://localhost:8000/addRss', {
+            await fetch('http://127.0.0.1:8000/addRss', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: "test@test.com",
-                    uid: "1",
-                    loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+                    email: cookies.userInfo.email,
+                    uid: cookies.userInfo.uid,
+                    loginAuth: cookies.userInfo.loginAuth,
                     name: name,
                     link: link
                 }),
@@ -65,15 +67,15 @@ const RSSPage = () => {
 
     const deleteRSSFeed = async (urlid) => {
         try {
-            await fetch('http://localhost:8000/deleteRss', {
+            await fetch('http://127.0.0.1:8000/deleteRss', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                email: "test@test.com",
-                uid: "1",
-                loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+                email: cookies.userInfo.email,
+                uid: cookies.userInfo.uid,
+                loginAuth: cookies.userInfo.loginAuth,
                 urlid: urlid
             }),
             });
@@ -87,7 +89,7 @@ const RSSPage = () => {
     }
 
     const showRSSLists = async () => {
-        const response = await fetch('http://localhost:8000/getRssList?email=test@test.com&uid=1&loginAuth=dGVzdEB0ZXN0LmNvbTE=', {
+        const response = await fetch(`http://127.0.0.1:8000/getRssList?email=${cookies.userInfo.email}&uid=${cookies.userInfo.uid}&loginAuth=${cookies.userInfo.loginAuth}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -97,7 +99,7 @@ const RSSPage = () => {
     }
 
     const showRSSContent = async () => {
-        const response = await fetch('http://localhost:8000/rss?email=test@test.com&uid=1&loginAuth=dGVzdEB0ZXN0LmNvbTE=', {
+        const response = await fetch(`http://127.0.0.1:8000/rss?email=${cookies.userInfo.email}&uid=${cookies.userInfo.uid}&loginAuth=${cookies.userInfo.loginAuth}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

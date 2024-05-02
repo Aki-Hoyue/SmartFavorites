@@ -5,10 +5,10 @@ import Head from "../../layout/head/Head";
 import FileManagerAside from "./Aside";
 import { useFileManager } from "./Context";
 import { Icon, BlockHead, BlockBetween, BlockTitle, BlockHeadContent } from "../../components/Component";
+import VoiceAssistant from "./VoiceAssistant";
 
 const FileManagerLayout = ({...props}) => {
   const {fileManager} = useFileManager();
-  //<VoiceAssistant />
   return (
     <>
       <Head title={props.title}></Head>
@@ -21,6 +21,7 @@ const FileManagerLayout = ({...props}) => {
           </div>
         </div>
       </Content>
+      
     </>
   );
 };

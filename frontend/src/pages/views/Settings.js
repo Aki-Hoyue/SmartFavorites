@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import { Block, Icon, UserAvatar, Col } from "../../components/Component";
 import { TabContent, TabPane, Modal, ModalBody, Button, ModalHeader, Input  } from "reactstrap";
 import { findUpper } from "../../utils/Utils";
@@ -6,10 +6,11 @@ import UpdateAvatar from '../modals/UpdateAvatar';
 import Toast from '../components/Toast';
 import { set } from 'react-hook-form';
 import { toast, ToastContainer } from "react-toastify";
+import { useCookies } from 'react-cookie';
 
 
 const Settings = () => {
-  
+  const [cookies, setCookie] = useCookies(['userInfo']);
   const urlParams = new URLSearchParams(window.location.search);
   let tabValue = urlParams.get('tab') === null ? "general" : urlParams.get('tab').toString();
   const [showToast, setShowToast] = useState(false);
@@ -33,13 +34,8 @@ const Settings = () => {
 
 
   const [modal, setModal] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "Aki Hoyue",
-    email: "test@test.com",
-    avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png",
-    uid: "1",
-    loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
-  });
+  const [formData, setFormData] = useState(cookies.userInfo);
+
 
   const userNameChange = async (name) => {
     if (name === formData.name){
@@ -51,8 +47,7 @@ const Settings = () => {
       setToast('Username cannot be empty', 'alert-circle');
       return;
     }
-
-    const respone = await fetch('http://localhost:8000/changeUsername', {
+    const respone = await fetch('http://127.0.0.1:8000/changeUsername', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,12 +65,11 @@ const Settings = () => {
     }});
     if (respone.status != 200) {
       console.log("Error: " + respone);
-      
     }
     setFormData({ ...formData, name: name });
+    setCookie('userInfo', JSON.stringify({ ...formData, name: name }), { path: '/', maxAge: 3 * 24 * 60 * 60 });
     setEditModal(false);
     setToast('Username changed successfully', 'check-circle');
-    console.log(showToast); 
   }
 
   const [current_password, setCurrentPassword] = React.useState("");
@@ -113,7 +107,7 @@ const Settings = () => {
       setConsistent(true);
       return;
     }
-    const response = await fetch('http://localhost:8000/changePassword', {
+    const response = await fetch('http://127.0.0.1:8000/changePassword', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

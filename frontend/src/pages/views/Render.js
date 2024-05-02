@@ -3,12 +3,15 @@ import { set } from 'react-hook-form';
 import Toast from '../components/Toast';
 import { useLocation } from 'react-router-dom';
 import { Icon } from '../../components/Component';
+import { useCookies } from 'react-cookie';
 
 const Render = () => {
     const location = useLocation();
-    const { fileId, fileName } = location.state;
+    const { fileId, fileName } = location.state?.fileInfo ? location.state?.fileInfo : '';
     const [fileScr, setFileScr] = useState("");
-
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [cookies] = useCookies(['userInfo']);
     const [showToast, setShowToast] = useState(false);
     const [toastText, setToastText] = useState('');
     const [toastIcon, setToastIcon] = useState('alert-circle');
@@ -55,18 +58,30 @@ const Render = () => {
     }
 
     useEffect(() => {
-        loadFiles();
+        const userInfo = cookies.userInfo ? cookies.userInfo : undefined;
+        if (userInfo === undefined) {
+            window.history.pushState("","",`${"/login"}`);
+            window.location.reload();
+        }
+        if(fileId === undefined) {
+            setError(true);
+        }
+        else {
+            loadFiles();
+        }
     }, [fileId]);
 
     return (
-        <>
+        <div>
             {showToast && <Toast text={toastText} icon={toastIcon} showToast={showToast} setShowToast={setShowToast} replay={toastReplay} setReplay={setToastReplay}></Toast>}
             <div className="d-flex justify-content-between">
                 <h5 className="nk-fmg-title">{fileName}</h5>
                 <button className="btn btn-dim btn-outline-primary" onClick={() => window.history.back()}><Icon name="arrow-left"> </Icon>Go Back</button>
             </div>
-            <iframe src={`https://view.xdocin.com/view?src=${fileScr}`} frameBorder="0" width="100%" height="1130px"></iframe>
-        </>
+            {isLoading && <div className="d-flex justify-content-center"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>}
+            {error && <div className="d-flex justify-content-center"><div className="alert alert-warning" role="alert">File Not Found</div></div>}
+            {!error && <iframe src={`https://view.xdocin.com/view?src=${fileScr}`} frameBorder="0" width="100%" height="1130px" onLoad={() => setIsLoading(false)} style={{display: isLoading ? 'none' : 'block'}}></iframe>}
+        </div>
     )
 }
 

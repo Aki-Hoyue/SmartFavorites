@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { Icon } from "../../components/Component";
 import { Button, Input, ModalBody, Form, FormGroup, Label } from "reactstrap";
 import { useForm } from "react-hook-form";
+import { useCookies } from 'react-cookie';
 
 const UploadAvatar = ({ formData, setFormData, UploadModal, setUploadModal, setToast }) => {
+  const [cookies, setCookie] = useCookies(['userInfo']);
   const [avatar, setAvatar] = useState(formData.avatar);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(undefined);
@@ -61,8 +63,11 @@ const UploadAvatar = ({ formData, setFormData, UploadModal, setUploadModal, setT
         }
         else {
           setToast("Upload success", 'check-circle');
-          const path = `http://127.0.0.1:8000${data["path"]}`;
+          let path = data["path"];
+            if (tab === 'local')
+                path = `http://127.0.0.1:8000${path}`;
           setFormData({ ...formData, avatar: path });
+          setCookie('userInfo', JSON.stringify({ ...formData, avatar: path }), { path: '/', maxAge: 3 * 24 * 60 * 60 });
         }
       })
       

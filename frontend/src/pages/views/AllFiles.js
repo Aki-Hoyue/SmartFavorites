@@ -2,10 +2,8 @@ import React from 'react'
 import { useFileManager } from "../components/Context";
 import Files from '../components/Files';
 
-const AllFiles = () => {
-
+const AllFiles = (userInfo) => {
   const {fileManager} = useFileManager();
-  
   const files = [ ...fileManager.files.filter(item => !item.deleted)]
   return (
     <>

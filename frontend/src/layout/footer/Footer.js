@@ -1,8 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import VoiceAssistant from "../../pages/components/VoiceAssistant";
 
 const Footer = () => {
   return (
+    <>
+    <VoiceAssistant />
     <div className="nk-footer">
       <div className="container-fluid">
         <div className="nk-footer-wrap">
@@ -27,6 +30,7 @@ const Footer = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 export default Footer;

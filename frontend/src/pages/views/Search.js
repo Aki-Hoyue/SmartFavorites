@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button, List, Modal, ModalHeader, ModalBody } from "reactstrap";
 import FileCard from '../components/FileCard';
 import { set } from 'react-hook-form';
 import { useFileManager, useFileManagerUpdate } from "../components/Context";
 import Toast from '../components/Toast';
 
-const SearchPage = ({ searchOnline }) => {
+const SearchPage = ({ userInfo }) => {
+    const [formData] = useState(userInfo);
     const [showToast, setShowToast] = useState(false);
     const [toastText, setToastText] = useState('');
     const [toastIcon, setToastIcon] = useState('alert-circle');
@@ -23,7 +25,8 @@ const SearchPage = ({ searchOnline }) => {
     }
 
     const {fileManagerUpdate} = useFileManagerUpdate();
-    const [search, setSearch] = useState("");
+    const location = useLocation();
+    const [search, setSearch] = useState(location.state?.title || '');
     const [searchResult, setSearchResult] = useState([]);
     const [loading, setLoading] = useState(false);
     const [empty, setEmpty] = useState(false);
@@ -41,16 +44,16 @@ const SearchPage = ({ searchOnline }) => {
             return;
         }
         setLoading(true);
-        const response = await fetch('http://localhost:8000/search', {
+        const response = await fetch('http://127.0.0.1:8000/search', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
                 keyword: search,
-                email: "test@test.com",
-                uid: "1",
-                loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+                email: formData.email,
+                uid: formData.uid,
+                loginAuth: formData.loginAuth,
             }),
         });
         const result = await response.json();
@@ -64,22 +67,22 @@ const SearchPage = ({ searchOnline }) => {
         }
     }
 
-    const importToFile = async () => {
+    const importToFile = async (id) => {
         const filename = bookInfo.title;
         const author = bookInfo.author;
         const abstract = bookInfo.abstract;
         const cover = bookInfo.image;
 
         try {
-            const response = await fetch(`http://127.0.0.1:8000/modifyFiles/${fileInfo}`, {
+            const response = await fetch(`http://127.0.0.1:8000/modifyFiles/${id}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                email: "test@test.com",
-                uid: "1",
-                loginAuth: "dGVzdEB0ZXN0LmNvbTE=",
+                email: formData.email,
+                uid: formData.uid,
+                loginAuth: formData.loginAuth,
                 filename: filename,
                 author: author,
                 abstract: abstract,
@@ -105,12 +108,17 @@ const SearchPage = ({ searchOnline }) => {
     }
 
     const getFile = (file) => {
-        console.log(file.id);
+        //console.log(file.id);
         setFileInfo(file.id);
         setImportStatus(false);
-        importToFile();
+        importToFile(file.id);
     }
 
+    useEffect(() => {
+        if(location.state?.title){
+            handleSearch();
+        }
+    }, [])
     return (
         <>
             {showToast && <Toast text={toastText} icon={toastIcon} showToast={showToast} setShowToast={setShowToast} replay={toastReplay} setReplay={setToastReplay}></Toast>}
@@ -127,7 +135,7 @@ const SearchPage = ({ searchOnline }) => {
                     />
                 </div>
                 <div className="d-flex align-items-center">
-                    <Button color="primary" onClick={handleSearch} disabled={loading}>{loading && <><span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> <span>Loading...</span></>}{!loading && <span>Search</span>}</Button>
+                    <Button color="primary" onClick={handleSearch} disabled={loading}>{loading && <><span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> <span>Loading...</span></>}{!loading && <span>Search</span>}</Button>
                 </div>
             </div>
             {searchResult.length === 0 && 
@@ -169,15 +177,6 @@ const SearchPage = ({ searchOnline }) => {
     )
 }
 
-const Search = () => {
-
-    return (
-        <>
-            <SearchPage searchOnline={true} />
-        </>
-    )
-}
-
-export default Search
+export default SearchPage
 
 
