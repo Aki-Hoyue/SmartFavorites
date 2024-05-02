@@ -23,6 +23,9 @@ origins = [
     "http://localhost:80",
     "http://localhost",
     "http://127.0.0.1:3000",
+    "http://smartfavorites.hoyue.fun",
+    "https://smartfavorites.hoyue.fun",
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
@@ -47,5 +50,5 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-# Start with command: uvicorn app.main:app --reload
+# Start with command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 '''

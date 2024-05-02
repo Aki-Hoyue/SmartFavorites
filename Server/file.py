@@ -7,7 +7,7 @@ import base64
 import os
 import uuid
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -79,7 +79,7 @@ async def upload(email: str = Form(...), uid: str = Form(...), loginAuth: str = 
             "Filename": file.filename,
             "Type": file_type.replace(".", "").upper(),
             "Description": description,
-            "FileAddress": file_path,
+            "FileAddress": file_path.replace("./files", "/files"),
             "UID": uid
         })
 

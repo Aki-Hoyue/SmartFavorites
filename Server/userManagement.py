@@ -8,7 +8,7 @@ from pydantic import BaseModel
 import hashlib
 import base64
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

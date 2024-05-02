@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import os
 from uuid import uuid4
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,7 +39,7 @@ async def text_to_speech(request: TTSRequest):
     
     if loginAuth == email + uid:
         try:
-            unique_filename = str(uuid4()) + ".mp3"
+            unique_filename = "TTSResult.mp3"
             file_path = os.path.join(TTS_PATH, unique_filename)
             
             communicate = Communicate(TEXT, VOICE)

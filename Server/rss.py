@@ -7,7 +7,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(rss: FastAPI):
