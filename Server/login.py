@@ -5,7 +5,7 @@ from pydantic import BaseModel
 import hashlib
 import base64
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,7 +58,7 @@ async def login(request: loginInfo):
             "uid": uid,
             "username": username,
             "auth": loginAuth,
-            "avatar": avatar
+            "avatar": avatar.replace("./avatars/", "http://127.0.0.1:8000/avatars/")
         }
     
 
@@ -91,5 +91,10 @@ async def register(request: registerInfo):
         })
         return {
             "status_code": 200,
-            "detail": "Register success"
+            "detail": "Register success",
+            "email": email,
+            "uid": uid,
+            "username": username,
+            "auth": base64.b64encode((email + str(uid)).encode("utf-8")),
+            "avatar": "https://cdn-icons-png.flaticon.com/512/149/149071.png"
         }
