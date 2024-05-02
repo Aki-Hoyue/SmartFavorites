@@ -10,8 +10,10 @@ import { set } from 'react-hook-form';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TTSModal from '../modals/TTSModal';
 import OCRModal from '../modals/OCR';
+import { useCookies } from 'react-cookie';
 
 const File = ({item, fileView, page}) => {
+    const [cookies] = useCookies(['userInfo']);
     const navigate = useNavigate();
     const location = useLocation();
     const [TTSShow, setTTSShow] = useState(false);
@@ -29,9 +31,35 @@ const File = ({item, fileView, page}) => {
 
     const downloadFile = (file) => {
         const downloadLink = document.createElement("a");
-        downloadLink.href = "data:" + file.ext + ";charset=utf-8," + encodeURIComponent(file.name);
-        downloadLink.download = file.name;
-        downloadLink.click();
+        try {
+            const response = fetch(`http://127.0.0.1:8000/findPath/${file.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: cookies.userInfo.email,
+                    uid: cookies.userInfo.uid,
+                    loginAuth: cookies.userInfo.loginAuth,
+                })
+            });
+            const result = response.json();
+            if (result["status_code"] !== 200) {
+                downloadLink.href = "data:" + file.type + ";charset=utf-8," + encodeURIComponent(file.name);
+                downloadLink.download = file.name;
+                downloadLink.click();
+                console.error('Download failed:', result);
+            }
+            else {
+                const path = result["path"];
+                downloadLink.href = `http://localhost:8000${path}`;
+                downloadLink.download = file.name;
+                downloadLink.click();
+            }
+        }
+        catch (error) {
+            console.error(error);
+        }
     };
 
     const deleteFile = (file) => {
