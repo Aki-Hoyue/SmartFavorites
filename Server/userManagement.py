@@ -43,10 +43,12 @@ async def register(request: newPassword):
     uid = request.uid
     password = request.password
     m = hashlib.md5()
+    nm = hashlib.md5()
     m.update(password.encode("utf-8"))
     password = m.hexdigest()
-    m.update(request.newpassword.encode("utf-8"))
-    newpassword = m.hexdigest()
+    nm.update(request.newpassword.encode("utf-8"))
+    newpassword = nm.hexdigest()
+    print("NEW: " + newpassword)
     loginAuth = request.loginAuth
     loginAuth = base64.b64decode(loginAuth).decode('utf-8')
     
