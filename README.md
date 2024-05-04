@@ -17,7 +17,7 @@ SmartFavorites is a web application developed with **React and FastAPI**, blendi
 - **User Information Management**: Offers user management functionality, making it easy for users to create and manage personal accounts along with their document access and editing privileges.
 - **Online OCR**: Capable of converting text content in scanned documents or images into electronic text for easy processing and reading.
 - **Document TTS (Text to Speech)**: Converts document content into spoken words, enhancing the reading experience, especially beneficial for individuals with visual impairments.
-- **Voice Assistant: Boosts human-machine interaction experience through AI-driven voice assistant technology, making document handling and operations more efficient and convenient.
+- **Voice Assistant**: Boosts human-machine interaction experience through AI-driven voice assistant technology, making document handling and operations more efficient and convenient.
 
 ## Preview
 
