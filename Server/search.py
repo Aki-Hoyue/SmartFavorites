@@ -39,6 +39,7 @@ def getProxies():
 proxies = list(getProxies())
 
 async def getBookList(title):
+    data = []
     
     respone = requests.get(url=url_base + title, headers={"User-Agent": USERAGENT})
 
@@ -116,7 +117,10 @@ async def search_books(request: searchInfo):
     
     if loginAuth == email + uid:
         bookInfo = await getBookList(keyword)
-        return bookInfo
+        return {
+            "status_code": 200,
+            "data": bookInfo
+        }
     else:
         return {
             "status_code": 401,

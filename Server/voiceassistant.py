@@ -1,9 +1,10 @@
+from contextlib import asynccontextmanager
 import os
 import shutil
 from fastapi.responses import StreamingResponse
 import requests
 import whisper
-from fastapi import FastAPI, File, HTTPException, UploadFile, APIRouter
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, APIRouter
 import base64
 import json
 from databases import Database
@@ -13,8 +14,15 @@ from uuid import uuid4
 import torch
 from transformers import BertTokenizer
 
-app = APIRouter(tags=["Voice Assistant"])
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.connect()
+    yield
+    await database.disconnect()
+
+app = APIRouter(lifespan=lifespan, tags=["Voice Assistant"])
 
 def classifier(text: str):
     from model import BertClassifier
@@ -49,9 +57,45 @@ def classifier(text: str):
     predicted_label = predict(model, text, tokenizer, labels, device)
     return predicted_label
 
-PROMPT = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. First, I will send you a statement and ask you to first judge the confidence of each item in labels for what the statement describes based on your model and output it using JSON format. Finally tell a most confidence label number and its confidence level, if you think the statement does not match any of the items described in the label, please tell me the label number is -1 and the level of confidence is -1.. labels are as follows:\nlabels = {'open a file': 0, 'delete a file': 1, 'ocr a file': 2, 'get latest rss titles': 3, 'search a book': 4, 'tts a file': 5}\nA similar output would be as follows:{'labels': {'0': 'percentage', '1': 'percentage'...}, 'Most_Confidence': {'label': '0', 'level': 'percentage'}' }\nNext, please output your feedback on the statement using generative text based on the statement. Requirements: provide a better user experience from the perspective of a voice assistant, and require the output to be bilingual in Chinese and English. And write it to the previous JSON, here is the example:\n{'labels': {'0': 'percentage', '1': 'percentage'...}, 'Most_Confidence': {'label': '0', 'level': 'percentage'}, 'text_zh': '中文回复','text_en': 'English response'}\nNote that all percentages in the output need to be in str form, i.e. in quotes, and all quotes are double quotes.\nThe following is my statement, please complete the output according to the above requirements:\n"
+LABEL = json.dumps({
+    "labels": {
+        "open a file": 0,
+        "delete a file": 1,
+        "ocr a file (Getting the system to convert text to text)": 2,
+        "get latest rss titles (or latest article or feeds)": 3,
+        "search a book": 4,
+        "tts a file (Getting the system to read text)": 5
+    }
+})
 
-GETFILENAME = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. I want you to extract the filename or the search keyword in the following statement, for example from ' I want to open the file test.md.' to 'test.md', or from ' I want to ocr the mybook.' to 'mybook', or from 'I want to search for 'Huozhe' to 'Huozhe'. Please return the extracted content to me directly."
+CONFIDENT_EXAMPLE = json.dumps({
+    "Most_Confidence": {
+        "label": "0",
+        "level": "percentage"
+    }
+})
+
+FINAL_EXAMPLE_EN = json.dumps({
+    "Most_Confidence": {
+        "label": "0",
+        "level": "percentage"
+    },
+    "Response": "[Here is some response in the language of the input...]",
+    "Language": "English"
+})
+
+FINAL_EXAMPLE_ZH = json.dumps({
+    "Most_Confidence": {
+        "label": "0",
+        "level": "percentage"
+    },
+    "Response": "[这里是一些回复，用输入的语言...]",
+    "Language": "Chinese"
+})
+
+PROMPT = "You are an intelligent verbal response assistant tasked with providing accurate responses based on the prompts I present to you. Initially, I will send you a statement for which you are to assess the confidence level of each item in a set of labels according to what the statement implies, using your model's capabilities. The assessment should be formatted in JSON. You are to respond with the label that has the highest confidence level, along with the confidence percentage. If you determine that the statement does not align with any of the provided labels, you should indicate this with a label number of -1 and a confidence level of -1. Following this, rather than stating a mismatch, you should proceed to offer a creative text response to the statement. \nThe labels are defined as follows: " + LABEL + "\nAn example labels matching output would look like this:\n" + CONFIDENT_EXAMPLE + "\nNote that the [level] should be expressed as a percentage in the form of a floating-point string ranging from 0 to 1, such as '0.5'.\n Following the confidence assessment, please provide your feedback on the statement using generative text based on the content of the statement. The response should aim to enhance the user experience from the perspective of a voice assistant. The text response should be in either Chinese or English, matching the language of the input. Additionally, all double quotes in the 'Response' field must be converted to brackets ('[]'). The output language should be specified as either 'English' or 'Chinese'. This information should be appended to the previous JSON structure. Here's an example:\n" + FINAL_EXAMPLE_EN + "\nOR\n" + FINAL_EXAMPLE_ZH + "Please ensure that all percentages in the output are in string format. All quotes in the JSON you return must be double quotes. Do not alter single quotes within the text of the 'Response' (e.g., leave [your's] as is, and do not change [I'm] to [I\"m]). Convert other double quotes within 'Response' to brackets ('[]'), such as changing \"Hello\" to [Hello]."
+
+GETFILENAME = "You are an intelligent verbal response assistant who will respond to the correct answer based on the prompts I give you. I want you to extract the keywords in the following statement, keywords includes the file title or filename or the search keyword or the file ID, for example from 'I want to open the file test.md.' to 'test.md', or from ' I want to ocr the mybook.' to 'mybook', or from 'I want to search for 'Huozhe' to 'Huozhe', or from 'I want to open the file which id is 1.' to '1'. Please return the extracted content to me with JSON format and finally tell me the language of the input text, for example: {'Type': 'Keyword', 'Keyword': 'Huozhe', 'Language': 'English'}, or {'Type': 'ID', 'ID': '1', 'Language': 'English'}, or {'Type': 'Name', 'Name': 'mybook', 'Language': 'English'}. Type only includes 'Keyword', 'ID' and 'Name' (Title or complete name are included in 'Name'), 'Keyword' only appears if a search is involved, Language only includes 'English' and 'Chinese'. Please all the quotes in the JSON you return are double quotes, don't refer to my example as it is for ease of writing, if they are not double quotes please modify them before outputting. The following is my statement, please complete the output according to the above requirements:\n"
 
 async def google_gemini(text: str, prompt=None):
     GOOGLE_API = "AIzaSyDqoqVxxiQYmcua5GkJ7oYX8zoVMcGyfvY"
@@ -74,207 +118,513 @@ async def google_gemini(text: str, prompt=None):
     
     response = model.generate_content(prompts + text, generation_config=config)
     
-    print(response.text)
+    print("Google Gemini response: ", response.text.replace("'", "\""))
     
-    return response.text
+    return response.text.replace("'", "\"")
 
 async def openfile(text: str):
-    prompt = GETFILENAME
-    filename = await google_gemini(text, prompt)
-    await database.connect()
+    response = await google_gemini(text, GETFILENAME)
+    response = response.replace("```", "")
+    response = response.replace("JSON", "")
+    response = response.replace("json", "")
+    response = response.strip()
+    response = json.loads(response)
+    print("Open a file, with response: ", response)
     
-    query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename AND UID = :uid"
-    result = await database.fetch_one(query, {"filename": filename, "uid": 1})
-    await database.disconnect()
-    
-    if result:
-        return {
-            "status_code": 200,
-            "operation": "open a file",
-            "text": "OK, I will open " + filename + " for you",
-            "fileaddress": result[0]
-        }
-    return {
-        "status_code": 404,
-        "operation": "open a file",
-        "text": "Can not find " + filename + ". Please check the filename and try again!",
-        "fileaddress": None
-    }
+    try:
+        if response['Type'] == 'ID':
+            query = "SELECT Filename FROM fileInfo WHERE FID = :id"
+            result = await database.fetch_one(query, {"id": int(response['ID'])})    
+            if result:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 0,
+                        "text": "OK, I will open the file that id is " + response['ID'] + " for you",
+                        "fileid": int(response['ID']),
+                        "filename": result[0],
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 0,
+                        "text": "好的，我会帮你打开ID为" + response['ID'] + "的文件。",
+                        "fileid": int(response['ID']),
+                        "filename": result[0],
+                        "language": "Chinese"
+                    }
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 404,
+                    "operation": 0,
+                    "text": "Can not find the file which ID is " + response['ID'] + ". Please check the ID and try again!",
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 404,
+                    "operation": 0,
+                    "text": "没有找到ID为" + response['ID'] + "的文件。请检查ID。",
+                    "language": "Chinese"
+                }
+        elif response['Type'] == 'Name':
+            query = "SELECT FID FROM fileInfo WHERE Filename = :filename"
+            result = await database.fetch_one(query, {"filename": response['Name'].lower().lower()})
+            if result:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 0,
+                        "text": "OK, I will open " + response['Name'].lower() + " for you",
+                        "fileid": int(result[0]),
+                        "filename": response['Name'].lower().lower(),
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 0,
+                        "text": "好的，我会打开" + response['Name'].lower() + "。",
+                        "fileid": int(result[0]),
+                        "filename": response['Name'].lower(),
+                        "language": "Chinese"
+                    }
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 404,
+                    "operation": 0,
+                    "text": "Can not find the file which name is " + response['Name'].lower() + ". Please check the name and try again!",
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 404,
+                    "operation": 0,
+                    "text": "没有找到名称为" + response['Name'].lower() + "的文件。请检查名称。",
+                    "language": "Chinese"
+                }
+        
+        else:
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 400,
+                    "operation": 0,
+                    "text": "Voice handle error",
+                    "details": response,
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 400,
+                    "operation": 0,
+                    "text": "语音处理错误",
+                    "details": response,
+                    "language": "Chinese"
+                }
+    except Exception as e:
+        raise HTTPException(status_code=400, message=e)
     
 async def deletefile(text: str):
-    prompt = GETFILENAME
-    filename = await google_gemini(text, prompt)
+    response = await google_gemini(text, GETFILENAME)
+    response = response.replace("```", "")
+    response = response.replace("JSON", "")
+    response = response.replace("json", "")
+    response = response.strip()
+    response = json.loads(response)
     
-    await database.connect()
-    
-    query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    result = await database.fetch_one(query, {"filename": filename})
-    
-    if result:
-        query = "DELETE FROM fileInfo WHERE Filename = :filename"
-        await database.execute(query, {"filename": filename})
-        await database.disconnect()
-    else:
-        database.disconnect()
-        return {
-            "status_code": 404,
-            "operation": "delete a file",
-            "text": "Can not find " + filename + ". Please check the filename and try again!"
-        }
-    
-    return {
-        "status_code": 200,
-        "operation": "delete a file",
-        "text": "OK, I will delete " + filename + " for you"
-    }
+    try:
+        if response['Type'] == 'ID':
+            query = "SELECT Filename FROM fileInfo WHERE FID = :id"
+            result = await database.fetch_one(query, {"id": int(response['ID'])})
+            if result:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 1,
+                        "text": "OK, I will delete the file that id is " + response['ID'] + " for you",
+                        "language": "English",
+                        "fileid": int(response['ID'])
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 1,
+                        "text": "好的，我会删除ID为" + response['ID'] + "的文件",
+                        "language": "Chinese",
+                        "fileid": int(response['ID'])
+                    }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 1,
+                        "text": "Can not find the file which ID is " + response['ID'] + ". Please check the ID and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 1,
+                        "text": "没有找到ID为" + response['ID'] + "的文件。请检查ID。",
+                        "language": "Chinese"
+                    }
+        
+        elif response['Type'] == 'Name':
+            query = "SELECT FID FROM fileInfo WHERE Filename = :filename"
+            result = await database.fetch_one(query, {"filename": response['Name'].lower()})
+            if result:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 1,
+                        "text": "OK, I will delete the file that name is " + response['Name'].lower() + " for you",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 1,
+                        "text": "好的，我会删除名称为" + response['Name'].lower() + "的文件",
+                        "language": "Chinese"
+                    }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 1,
+                        "text": "Can not find the file which name is " + response['Name'].lower() + ". Please check the name and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 1,
+                        "text": "没有找到名称为" + response['Name'].lower() + "的文件。请检查名称。",
+                        "language": "Chinese"
+                    }
+        else:
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 400,
+                    "operation": 1,
+                    "text": "Voice handle error",
+                    "details": response,
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 400,
+                    "operation": 1,
+                    "text": "语音处理错误",
+                    "details": response,
+                    "language": "Chinese"
+                }
+    except Exception as e:
+        raise HTTPException(status_code=400, message=e)
 
 async def ocrfile(text: str):
-    prompt = GETFILENAME
-    filename = await google_gemini(text, prompt)
+    response = await google_gemini(text, GETFILENAME)
+    response = response.replace("```", "")
+    response = response.replace("JSON", "")
+    response = response.replace("json", "")
+    response = response.strip()
+    response = json.loads(response)
     
-    await database.connect()
-    
-    query = "SELECT FileAddress FROM fileInfo WHERE Filename = :filename"
-    file_path = await database.fetch_one(query, {"filename": filename})
-    await database.disconnect()
-    
-    if file_path is None:
-        return {
-            "status_code": 404,
-            "operation": "ocr a file",
-            "text": "Can not find " + filename + ". Please check the filename and try again!"
-        }
-    
-    with open(file_path, 'rb') as file:
-        content = file.read()
-        file = UploadFile(filename=file_path.name, file=BytesIO(content))
-    
-    if file.content_type != 'application/pdf':
-        return {
-            "status_code": 400,
-            "operation": "ocr a file",
-            "text": "Input file is not a PDF"
-        }
+    try:
+        if response['Type'] == 'ID':
+            query = "SELECT Type FROM fileInfo WHERE FID = :id"
+            result = await database.fetch_one(query, {"id": int(response['ID'])})
+            if result[0].replace(".", "").replace(" ", "").upper() == "PDF":
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 2,
+                        "text": "OK, I will ocr the file that id is " + response['ID'] + " for you",
+                        "fileid": int(response['ID']),
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 2,
+                        "text": "好的，我会帮你OCR ID为" + response['ID'] + "的文件。",
+                        "fileid": int(response['ID']),
+                        "language": "Chinese"
+                    }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 2,
+                        "text": "Not support file type or can not find the file which ID is " + response['ID'] + ". Please check the ID and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 2,
+                        "text": "不支持文件类型或没有找到ID为" + response['ID'] + "的文件。请检查ID。",
+                        "language": "Chinese"
+                    }
+        elif response['Type'] == 'Name':
+            query = "SELECT Type FROM fileInfo WHERE Filename = :filename"
+            result = await database.fetch_one(query, {"filename": response['Name'].lower()})
+            if result[0].replace(".", "").replace(" ", "").upper() == "PDF":
+                query = "SELECT FID FROM fileInfo WHERE Filename = :filename"
+                result = await database.fetch_one(query, {"filename": response['Name'].lower()})
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 200,
+                        "operation": 2,
+                        "text": "OK, I will ocr the file that name is " + response['Name'].lower() + " for you",
+                        "fileid": int(result[0]),
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 200,
+                        "operation": 2,
+                        "text": "好的，我会帮你OCR名称为" + response['Name'].lower() + "的文件。",
+                        "fileid": int(result[0]),
+                        "language": "Chinese"
+                    }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 2,
+                        "text": "Not support file type or can not find the file which name is " + response['Name'].lower() + ". Please check the name and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 2,
+                        "text": "不支持文件类型或没有找到名称为" + response['Name'].lower() + "的文件。请检查名称。",
+                        "language": "Chinese"
+                    }
+        else:
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 400,
+                    "operation": 2,
+                    "text": "Voice handle error",
+                    "details": response,
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 400,
+                    "operation": 2,
+                    "text": "语音处理错误",
+                    "details": response,
+                    "language": "Chinese"
+                }
+    except Exception as e:
+        raise HTTPException(status_code=400, message=e)
 
-    response = requests.post(
-        'https://pdf.hoyue.pp.ua/api/v1/misc/ocr-pdf',
-        files={'fileInput': (file.filename, content, file.content_type)},
-        data={
-            'languages': "eng",
-            'sidecar': True,
-            'ocrType': 'skip-text',
-            'ocrRenderType': "hocr"
-        }
-    )
-    
-    if response.status_code == 200:
-        content_type = response.headers.get('content-type')
-        filename = response.headers.get('Content-Disposition').split('filename=')[1]
-    
-    
-    return {
-        "status_code": 200,
-        "operation": "ocr a file",
-        "text": "OK, I will ocr it.",
-        "files": StreamingResponse(BytesIO(response.content), media_type=content_type, headers={"Content-Disposition": "form-data; name='attachment'; filename={}".format(filename)})
-    }
-    
 async def getlatestrss():
-    await database.connect()
-    
     query = "SELECT Link FROM rssContent WHERE Published = (SELECT MAX(Published) FROM rssContent)" 
     Link = await database.fetch_one(query)
-    await database.disconnect()
-    
-    if Link is None:
+    if Link:
         return {
-            "status_code": 404,
-            "operation": "get latest rss",
-            "text": "No rss content found."
+            "status_code": 200,
+            "operation": 3,
+            "text": "OK, I will get the latest rss article for you",
+            "link": Link[0],
+            "language": "English"
         }
     else:
         return {
-            "status_code": 200,
-            "operation": "get latest rss",
-            "text": "The latest rss is " + Link[0],
-            "link": Link[0]
+            "status_code": 404,
+            "operation": 3,
+            "text": "Can not find the latest rss article",
+            "language": "English"
         }
 
 async def searchbook(text: str):
-    prompt = GETFILENAME
-    title = await google_gemini(text, prompt)
-    
-    query = "https://read.douban.com/j/search?start=0&limit=20&query=" + title
-    useragent = "Mozilla/5.0 (Linux; Android 8.1.0; JKM-AL00b Build/HUAWEIJKM-AL00b; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/66.0.3359.126 MQQBrowser/6.2 TBS/044807 Mobile Safari/537.36"
-    response = requests.get(query, headers={"User-Agent": useragent})
-    list = response.json()
-    bookList = []
-    for i in list:
-        if i["title"] is not None:
-            bookList.append({
-                "title": i["title"],
-                "subtitle": i["subtitle"],
-                "author": i["author"],
-                "abstract": i["abstract"],
-                "cover": i["cover"],
-                "id": i["id"]
-            })
-    return {
-        "status_code": 200,
-        "operation": "search for book",
-        "text": "OK, I will search for " + title + " for you",
-        "booklist": bookList
-    }
-    
-async def ttsfile(text: str):
-    prompt = GETFILENAME
-    filename = await google_gemini(text, prompt)
-    
-    await database.connect()
-    query = "SELECT FileAddress, Type FROM fileInfo WHERE Filename = :filename"
-    respone = await database.fetch_one(query, {"filename": filename})
-    file_path = respone[0]
-    file_type = respone[1]
-    await database.disconnect()
-    
-    if file_path is None:
-        return {
-            "status_code": 404,
-            "operation": "tts a file",
-            "text": "Can not find " + filename + ". Please check the filename and try again!"
-        }
-    
-    if file_type != 'epub' and file_type != 'pdf' and file_type != 'txt':
-        return {
-            "status_code": 400,
-            "operation": "tts a file",
-            "text": "File type is not supported"
-        }
-    
-    with open(file_path, 'r') as file:
-        content = file.read()
-    
-    request = content.replace("\"", " ")
-    voice = "zh-CN-XiaoxiaoNeural"
-    TTS_PATH = "./tts_files"
+    response = await google_gemini(text, GETFILENAME)
+    response = response.replace("```", "")
+    response = response.replace("JSON", "")
+    response = response.replace("json", "")
+    response = response.strip()
+    response = json.loads(response)
     
     try:
-        unique_filename = str(uuid4()) + ".mp3"
-        file_path = os.path.join(TTS_PATH, unique_filename)
-        
-        communicate = Communicate(request, voice)
-        await communicate.save(file_path)
-        return {
-            "status_code": 200,
-            "operation": "tts a file",
-            "text": "OK, I will TTS " + filename,
-            "file_path": file_path
-        }
+        if response['Type'] == 'Keyword':
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 200,
+                    "operation": 4,
+                    "text": "OK, I will search for " + response['Keyword'] + " for you",
+                    "keyword": response['Keyword'],
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 200,
+                    "operation": 4,
+                    "text": "好的，我会搜索" + response['Keyword'] + "。",
+                    "keyword": response['Keyword'],
+                    "language": "Chinese"
+                }
+        else:
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 400,
+                    "operation": 4,
+                    "text": "Voice handle error",
+                    "details": response,
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 400,
+                    "operation": 4,
+                    "text": "语音处理错误",
+                    "details": response,
+                    "language": "Chinese"
+                }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, message=e)
+    
+async def ttsfile(text: str):
+    response = await google_gemini(text, GETFILENAME)
+    response = response.replace("```", "")
+    response = response.replace("JSON", "")
+    response = response.replace("json", "")
+    response = response.strip()
+    response = json.loads(response)
+    
+    try:
+        if response['Type'] == 'ID':
+            query = "SELECT Type FROM fileInfo WHERE FID = :id"
+            result = await database.fetch_one(query, {"id": int(response['ID'])})
+            if result[0].replace(".", "").replace(" ", "").upper() == "TXT":  
+                query = "SELECT Filename FROM fileInfo WHERE FID = :id"
+                result = await database.fetch_one(query, {"id": int(response['ID'])})
+                if result:
+                    if response['Language'] == 'English':
+                        return {
+                            "status_code": 200,
+                            "operation": 5,
+                            "text": "OK, I will tts the file that id is " + response['ID'] + " for you",
+                            "fileid": int(response['ID']),
+                            "language": "English"
+                        }
+                    else:
+                        return {
+                            "status_code": 200,
+                            "operation": 5,
+                            "text": "好的，我会帮你TTS ID为" + response['ID'] + "的文件。",
+                            "fileid": int(response['ID']),
+                        }
+                else:
+                    if response['Language'] == 'English':
+                        return {
+                            "status_code": 404,
+                            "operation": 5,
+                            "text": "Can not find the file which ID is " + response['ID'] + ". Please check the ID and try again!",
+                            "language": "English"
+                        }
+                    else:
+                        return {
+                            "status_code": 404,
+                            "operation": 5,
+                            "text": "没有找到ID为" + response['ID'] + "的文件。请检查ID。",
+                            "language": "Chinese"
+                        }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 5,
+                        "text": "Not support file type or can not find the file which ID is " + response['ID'] + ". Please check the ID and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 5,
+                        "text": "不支持文件类型或没有找到ID为" + response['ID'] + "的文件。请检查ID。",
+                        "language": "Chinese"
+                    }
+        elif response['Type'] == 'Name':
+            query = "SELECT Type FROM fileInfo WHERE Filename = :filename"
+            result = await database.fetch_one(query, {"filename": response['Name'].lower()})
+            if result[0].replace(".", "").replace(" ", "").upper() == "TXT":
+                query = "SELECT FID FROM fileInfo WHERE Filename = :filename"
+                result = await database.fetch_one(query, {"filename": response['Name'].lower()})
+                if result:
+                    if response['Language'] == 'English':
+                        return {
+                            "status_code": 200,
+                            "operation": 5,
+                            "text": "OK, I will tts the file that name is " + response['Name'].lower() + " for you",
+                            "fileid": int(result[0]),
+                            "language": "English"
+                        }
+                    else:
+                        return {
+                            "status_code": 200,
+                            "operation": 5,
+                            "text": "好的，我会帮你TTS名称为" + response['Name'].lower() + "的文件。",
+                            "fileid": int(result[0]),
+                            "language": "Chinese"
+                        }
+                else:
+                    if response['Language'] == 'English':
+                        return {
+                            "status_code": 404,
+                            "operation": 5,
+                            "text": "Can not find the file which name is " + response['Name'].lower() + ". Please check the name and try again!",
+                            "language": "English"
+                        }
+                    else:
+                        return {
+                            "status_code": 404,
+                            "operation": 5,
+                            "text": "没有找到名称为" + response['Name'].lower() + "的文件。请检查名称。",
+                            "language": "Chinese"
+                        }
+            else:
+                if response['Language'] == 'English':
+                    return {
+                        "status_code": 404,
+                        "operation": 5,
+                        "text": "Not support file type or can not find the file which name is " + response['Name'].lower() + ". Please check the name and try again!",
+                        "language": "English"
+                    }
+                else:
+                    return {
+                        "status_code": 404,
+                        "operation": 5,
+                        "text": "不支持文件类型或没有找到名称为" + response['Name'].lower() + "的文件。请检查名称。",
+                        "language": "Chinese"
+                    }
+        else:
+            if response['Language'] == 'English':
+                return {
+                    "status_code": 400,
+                    "operation": 5,
+                    "text": "Voice handle error",
+                    "details": response,
+                    "language": "English"
+                }
+            else:
+                return {
+                    "status_code": 400,
+                    "operation": 5,
+                    "text": "语音处理错误",
+                    "details": response,
+                    "language": "Chinese"
+                }
+    except Exception as e:
+        raise HTTPException(status_code=400, message=e)
 
-@app.post("/voice")
-async def voice(email: str, uid: str, loginAuth: str, voice: UploadFile = File(...)):
+@app.post("/voiceTransform")
+async def voiceTransform(email: str = Form(...), uid: str = Form(...), loginAuth: str = Form(...), voice: UploadFile = File(...)):
     Auth = loginAuth.encode("utf-8")
     Auth = base64.b64decode(Auth).decode("utf-8")
     
@@ -288,59 +638,95 @@ async def voice(email: str, uid: str, loginAuth: str, voice: UploadFile = File(.
                 f.write(data)
                 shutil.copyfileobj(voice.file, f)
             
-            model = whisper.load_model("medium", download_root="./models/")
+            model = whisper.load_model("medium", download_root="./models")
             
-            prompt = "如果使用了中文，请使用简体中文来表示文本内容"
+            prompt = "你默认使用英文分析语音内容并返回表示文本，如果使用了中文，则使用简体中文来表示文本内容。"
             result = model.transcribe(filepath, language=None, initial_prompt=prompt)
+            return {
+                "status_code": 200,
+                "text": result["text"]
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        return {
+            "status_code": 401,
+            "detail": "User not logined"
+        }
 
-            response = await google_gemini(result["text"])
-            response = response.replace("JSON", " ")
-            response = response.replace("json", " ")
-            response = response.replace("```", " ")
+@app.post("/voiceAnalysis")
+async def voice(email: str = Form(...), uid: str = Form(...), loginAuth: str = Form(...), text: str = Form(...)):
+    Auth = loginAuth.encode("utf-8")
+    Auth = base64.b64decode(Auth).decode("utf-8")
+    
+    if Auth == email + uid:
+        try:
+            response = await google_gemini(text)
+            response = response.replace("```", "")
+            response = response.replace("JSON", "")
+            response = response.replace("json", "")
+            response = response.strip()
             response = json.loads(response)
             
             confident_code = response["Most_Confidence"]["label"]
-            confidence = float(response["Most_Confidence"]["level"].strip('%')) / 100
-            
-            if confidence > 0.5:
-                code = classifier(result["text"])
+            confidence = float(response["Most_Confidence"]["level"])
+            state = {}
+            if confident_code != '-1' and confidence >= 0.5:
+                code = classifier(text)
                 if confident_code != code:
-                    code = confident_code    
-                
-                state = {}
+                    code = confident_code 
                 if code == '0':
-                    state = await openfile(result["text"])
+                    state = await openfile(text)
                     print(state)
                 elif code == '1':
-                    state = await deletefile(result["text"])
+                    state = await deletefile(text)
                 elif code == '2':
-                    state = await ocrfile(result["text"])
+                    state = await ocrfile(text)
                 elif code == '3':
                     state = await getlatestrss()
                 elif code == '4':
-                    state = await searchbook(result["text"])
+                    state = await searchbook(text)
                 elif code == '5':
-                    state = await ttsfile(result["text"])
+                    state = await ttsfile(text)
                 
-                text = state["text"]
+                response_text = state['text']
+                print("state: ", state)
+                print("response_text: ", response_text)
             else: 
-                text = response["text_zh"]
+                response_text = response['Response']
+            request = response_text.replace("\"", " ")
+            language = response['Language']
+            if state != {}:
+                language = state['language']
             
-            request = text.replace("\"", " ")
-            voice = "zh-CN-XiaoxiaoNeural"
+            if language == 'English':
+                voice = "en-US-SteffanNeural"
+            else:
+                voice = "zh-CN-XiaoxiaoNeural"
+            
             TTS_PATH = "./tts_files"
             
-            unique_filename = str(uuid4()) + ".mp3"
-            file_path = os.path.join(TTS_PATH, unique_filename)
+            filename = "Response.mp3"
+            file_path = os.path.join(TTS_PATH, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
             
             communicate = Communicate(request, voice)
             await communicate.save(file_path)
-            return {
-                "status_code": 200,
-                "operation": state["operation"],
-                "text": text,
-                "voice": file_path
-            }
+            if state != {}:
+                print(state)
+                return {
+                    "status_code": 200,
+                    "text": response_text.replace("[", "").replace("]", ""),
+                    "tts_path": file_path,
+                    "state": state
+                }
+            else:
+                return {
+                    "status_code": 201,
+                    "text": response_text,
+                    "tts_path": file_path.replace("[", "").replace("]", "")
+                }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

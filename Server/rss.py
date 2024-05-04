@@ -7,7 +7,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-database = Database("sqlite:///test.db")
+database = Database("sqlite:///SmartFavoritesDB.db")
 
 @asynccontextmanager
 async def lifespan(rss: FastAPI):
@@ -19,10 +19,10 @@ app = APIRouter(lifespan=lifespan, tags=["RSS"])
 
 async def read_rss(feed_url: str, urlid: int, uid: str):
     try:
-        feed = feedparser.parse(feed_url, agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36')
+        feed = feedparser.parse(feed_url, agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36')
 
         if feed.bozo:
-            raise HTTPException(status_code=400, detail="Can not resolve rss feed url.")
+            raise HTTPException(status_code=400, detail="Error resolving rss feed url.")
 
         await database.execute("CREATE TABLE IF NOT EXISTS rssContent (Title TEXT NOT NULL, Link TEXT NOT NULL PRIMARY KEY NOT NULL, Published INTEGER NOT NULL, URLID INTEGER NOT NULL, UID INTEGER NOT NULL, FOREIGN KEY (UID) REFERENCES rssList (UID) ON DELETE CASCADE)")
 
@@ -49,7 +49,7 @@ async def read_rss(feed_url: str, urlid: int, uid: str):
                 })
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error, server busy and try again later")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/rss")
 async def update_rss(email: str, uid: str, loginAuth: str):
