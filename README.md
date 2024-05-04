@@ -116,7 +116,7 @@ Enjoy~
 
 This project is based on the MIT License, and further development is welcomed. For detailed development documentation, please see the document folder.
 
-Development documentation in English: https://github.com/Aki-Hoyue/SmartFavorites/blob/main/documents/development.md
+Development documentation in English: https://github.com/Aki-Hoyue/SmartFavorites/blob/main/documents/development.md  
 Development documentation in 中文: https://github.com/Aki-Hoyue/SmartFavorites/blob/main/documents/development_zh.md
 
 ## Q&A
