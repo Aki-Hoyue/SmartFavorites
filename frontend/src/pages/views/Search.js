@@ -31,7 +31,6 @@ const SearchPage = ({ userInfo }) => {
     const [loading, setLoading] = useState(false);
     const [empty, setEmpty] = useState(false);
     const [importStatus, setImportStatus] = useState(false);
-    const [fileInfo, setFileInfo] = useState(null);
     const [bookInfo, setBookInfo] = useState({});
 
     const handleSearch = async () => {
@@ -72,7 +71,6 @@ const SearchPage = ({ userInfo }) => {
         const author = bookInfo.author;
         const abstract = bookInfo.abstract;
         const cover = bookInfo.image;
-
         try {
             const response = await fetch(`http://127.0.0.1:8000/modifyFiles/${id}`, {
               method: 'POST',
@@ -96,7 +94,7 @@ const SearchPage = ({ userInfo }) => {
               setToast('Import failed: ' + result["detail"], 'cross-circle');
             }
             else {
-              fileManagerUpdate.modifyFile(fileInfo, filename, author, abstract, cover);
+              fileManagerUpdate.modifyFile(id, filename, author, abstract, cover);
               setImportStatus(false);
               setToast('Import successfully', 'check-circle');
             }
@@ -108,8 +106,6 @@ const SearchPage = ({ userInfo }) => {
     }
 
     const getFile = (file) => {
-        //console.log(file.id);
-        setFileInfo(file.id);
         setImportStatus(false);
         importToFile(file.id);
     }

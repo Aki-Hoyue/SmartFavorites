@@ -79,7 +79,7 @@ async def upload(email: str = Form(...), uid: str = Form(...), loginAuth: str = 
             "Filename": file.filename,
             "Type": file_type.replace(".", "").upper(),
             "Description": description,
-            "FileAddress": file_path.replace("./files", "/files"),
+            "FileAddress": file_path,
             "UID": uid
         })
 
@@ -180,7 +180,7 @@ async def file_search(request: fileInfo, fid: int):
         if file_path is not None:
             return {
                 "status_code": 200,
-                "path": file_path["FileAddress"]
+                "path": file_path["FileAddress"].replace("./files", "/files")
             }
         else:
             return {
