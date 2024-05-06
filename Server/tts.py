@@ -67,7 +67,7 @@ async def get_text(fid: int, email: str, uid: str, loginAuth: str):
         try:
             query = "SELECT FileAddress FROM fileInfo WHERE FID = :fid"
             path = await database.fetch_one(query, {"fid": fid})
-            file = open(path[0].replace("/files", "./files"), "r", encoding="utf-8")
+            file = open(path[0], "r", encoding="utf-8")
             result = file.read()
             
             return {

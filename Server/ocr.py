@@ -46,7 +46,7 @@ async def process_ocr(fid: int, request: OCRRequest):
             "detail": "File not found"
         }
     
-    file_path = file_path[0].replace("/files", "./files")
+    file_path = file_path[0]
     content_type = mimetypes.guess_type(file_path)[0]
     if content_type != 'application/pdf':
         raise HTTPException(status_code=400, detail="Input file is not a PDF")
