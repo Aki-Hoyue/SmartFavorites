@@ -29,10 +29,10 @@ const File = ({item, fileView, page}) => {
     };
     
 
-    const downloadFile = (file) => {
+    const downloadFile = async (file) => {
         const downloadLink = document.createElement("a");
         try {
-            const response = fetch(`http://127.0.0.1:8000/findPath/${file.id}`, {
+            const response = await fetch(`http://127.0.0.1:8000/findPath/${file.id}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -43,16 +43,16 @@ const File = ({item, fileView, page}) => {
                     loginAuth: cookies.userInfo.loginAuth,
                 })
             });
-            const result = response.json();
+            const result = await response.json();
             if (result["status_code"] !== 200) {
-                downloadLink.href = "data:" + file.type + ";charset=utf-8," + encodeURIComponent(file.name);
-                downloadLink.download = file.name;
-                downloadLink.click();
                 console.error('Download failed:', result);
             }
             else {
                 const path = result["path"];
-                downloadLink.href = `http://localhost:8000${path}`;
+                if(path.startsWith("http"))
+                    downloadLink.href = path;
+                else 
+                    downloadLink.href = `http://127.0.0.1:8000${path}`;
                 downloadLink.download = file.name;
                 downloadLink.click();
             }

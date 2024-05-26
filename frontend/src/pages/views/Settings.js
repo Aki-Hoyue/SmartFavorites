@@ -5,7 +5,6 @@ import { findUpper } from "../../utils/Utils";
 import UpdateAvatar from '../modals/UpdateAvatar';
 import Toast from '../components/Toast';
 import { set } from 'react-hook-form';
-import { toast, ToastContainer } from "react-toastify";
 import { useCookies } from 'react-cookie';
 
 

@@ -47,7 +47,10 @@ const Render = () => {
                 setToast('Load file failed: ' + result["detail"], 'cross-circle');
             }
             else {
-                setFileScr(result["path"]);
+                if(result["path"].startsWith("http"))
+                    setFileScr(result["path"]);
+                else
+                    setFileScr("http://localhost:8000" + result["path"]);
             }
         }
         catch (error) {

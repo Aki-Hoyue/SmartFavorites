@@ -15,6 +15,7 @@ app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
 app.mount("/files", StaticFiles(directory="files"), name="files")
 app.mount("/tts_files", StaticFiles(directory="tts_files"), name="tts_files")
 app.mount("/ocr_files", StaticFiles(directory="ocr_files"), name="ocr_files")
+app.mount("/models", StaticFiles(directory="models"), name="models")
 
 origins = [
     "http://localhost:3000",

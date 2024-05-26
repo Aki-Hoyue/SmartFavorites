@@ -71,13 +71,13 @@ const VoiceAssistant = () => {
 
     const sendAudio = async () => {
         setIsDisable(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const cstream = streamRef.current;
         if (cstream) {
             cstream.getTracks().forEach(track => track.stop());
             streamRef.current = null;
         }
         setVoiceOutputText('Analyzing...');
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const formData = new FormData();
         formData.append("email", cookies.userInfo.email);
         formData.append("uid", cookies.userInfo.uid);
